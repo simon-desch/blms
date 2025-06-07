@@ -19,3 +19,5 @@ RoxygenNote: 7.3.2
 Imports: 
     brms
 Config/testthat/edition: 3
+URL: https://github.com/simon-desch/blms
+BugReports: https://github.com/simon-desch/blms/issues
