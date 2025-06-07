@@ -1,0 +1,6 @@
+^blms\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^README\.Rmd$
+R/test.*
+R/.test.*
