@@ -43,7 +43,7 @@ You can install the development version of blms like so:
 
 ``` r
 require(remotes)
-remotes::install_github('deschsimon/blms')
+remotes::install_github('simon-desch/blms')
 ```
 
 ## Example
