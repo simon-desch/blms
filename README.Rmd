@@ -91,3 +91,9 @@ model.hmm_rp <- hmm_rp(choice|block(condition:id)~reward,
                            )
                        )
 ```
+
+
+
+
+
+

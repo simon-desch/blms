@@ -26,7 +26,9 @@ will be applied to each row of the data separately, or to `FALSE`,
 meaning that the function will receive all data (from respective
 variables passed to the function) at once. blms allows to define a
 `block()` structure based on other variables of the data that will be
-used to apply the function separately for each subset of the data.
+used to create an additional variable `blockgrp` (name can be
+customized) that will be passed to the user defined function. With this,
+code inside the function can take
 
 blms currently provides some predefined models that make use of this
 feature and corresponding wrapper functions to run those models by
@@ -43,7 +45,7 @@ You can install the development version of blms like so:
 
 ``` r
 require(remotes)
-remotes::install_github('deschsimon/blms')
+remotes::install_github('simon-desch/blms')
 ```
 
 ## Example
@@ -52,10 +54,10 @@ Say we had a data set from `N` participants that performed a learning
 task under two different conditions. Let’s further assume we wanted to
 fit the choice behavior using a Hidden Markov model (cf. (Schlagenhauf
 et al. 2014)) using separate emission probabilities for positive and
-negative outcomes. If choice is coded as `1` or `2`, respectively and
+negative outcomes. If choice is coded as `1` or `2`, respectively, and
 the reward is coded as `-1` for lose and `+1` for win, `id` defines each
 participant and condition defines the experimental condition (`neut`or
-`cat`in this example), the we can fit the model like this:
+`cat` in this example), the we can fit the model like this:
 
 ``` r
 library(brms)
