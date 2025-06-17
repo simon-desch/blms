@@ -28,9 +28,9 @@ variables passed to the function) at once. blms allows to define a
 `block()` structure based on other variables of the data that will be
 used to create an additional variable `blockgrp` (name can be
 customized) that will be passed to the user defined function. With this,
-code inside the function can take
+code inside the function can take care of block structure of the data.
 
-blms currently provides some predefined models that make use of this
+`blms` currently provides some predefined models that make use of this
 feature and corresponding wrapper functions to run those models by
 providing only the variables in data that are needed to use those
 functions. Each model has a defined set of parameters that will be used
