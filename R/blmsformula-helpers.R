@@ -24,8 +24,60 @@ rm_ws <-
 #' @param x Any object
 #'
 #' @returns \code{TRUE} if \code{x} is a formula, else \code{FALSE}
+#' @export
+#'
 is.formula <-
   function(x) {is.call(x) && x[[1]] == quote(`~`)}
+
+#' Test if input is \code{formula} or \code{list}
+#' (i.e. \code{brms::nlf, brms::lf}) defining one
+#'
+#' @param x An to be tested for its \code{formula}
+#'
+#' @returns \code{TRUE} if \code{x} is a formula (also returns \code{TRUE} for
+#'          \code{brms::nlf} and \code{brms::lf} objects), else \code{FALSE}
+#' @export
+#'
+is_formula <- function(x) {
+  if (is.formula(x)) return(T)
+  if (is.list(x) && class(x[[1]]) == 'formula') return(T)
+  return(F)
+}
+
+#' Get the \code{formula} from. \code{x}
+#'
+#' @param x
+#'
+#' @returns a \code{formula} object if \code{is_formula(x) == TRUE} else
+#'          \code{NULL}
+#' @export
+#'
+get_formula <-
+  function(x) {
+    if (is.formula(x)) return(x)
+    if (is.list(x) && class(x[[1]]) == 'formula') return(x[[1]])
+    return(NULL)
+  }
+
+#' Set the \code{formula} of \code{x}
+#'
+#' @param x \code{formula}
+#' @param new_x new \code{formula}
+#'
+#' @returns \code{new_x} with attributes of \code{x}
+#' @export
+#'
+set_formula <-
+  function(x, new_x) {
+    attributes(new_x) <- attributes(x)
+    if (is.formula(x)) return(new_x)
+    if (is.list(x) && class(x[[1]]) == 'formula') {
+    attributes(new_x) <- attributes(x[[1]])
+      x[[1]] <- new_x
+      return(x)
+    }
+    return(new_x)
+  }
 
 #' Get the left-hand side of a formula
 #'
@@ -35,6 +87,7 @@ is.formula <-
 #'          otherwise \code{NULL}
 lhs <-
   function(f) {
+    f <- get_formula(f)
     if (length(f)==3) return(f[[2]])
     return(NULL)
   }
@@ -47,6 +100,7 @@ lhs <-
 #' @returns The right-hand side of a formula
 rhs <-
   function(f) {
+    f <- get_formula(f)
     if (length(f)==3) return(f[[3]])
     if (length(f)==2) return(f[[2]])
     return(NULL)
@@ -123,17 +177,39 @@ is.twosided <-
 #'
 split_by_lhs <-
   function(form) {
+    form_in <- form
+    form <- get_formula(form)
+    is_transform <- is_transform_formula(form)
     lh_vars <- all.vars(lhs(form))
     names(lh_vars) <- lh_vars
     rhs_str <- rhs_dp(form)
+    out_forms <-
     lapply(
       lh_vars,
       \(x) {
-        outform <- as.formula(paste0(x, ' ~ ', rhs_str))
-        attributes(outform) <- attributes(outform)
-        return(outform)
+        outform <- as.formula(paste0(ifelse(is_transform,
+                                            paste0('transform(', x, ')'), x),
+                                     ' ~ ', rhs_str))
+        attributes(outform) <- attributes(form_in)
+        return(set_formula(form_in, outform))
       }
       )
+    # names(out_forms) <- NULL
+    return(out_forms)
+  }
+
+#' Set specific environment for an object
+#'
+#' @param obj An object.
+#' @param envir An \code{environment} object.
+#'
+#' @returns \code{obj} with attribute \code{'.Environment'} set to \code{envir}
+#' @export
+#'
+obj_set_env <-
+  function(obj, envir){
+    attr(obj, '.Environment') <- envir
+    return(obj)
   }
 
 #' Find and return terms of a formula that (do not) contain a bar (|)
@@ -291,7 +367,7 @@ validate_var <-
       if(null_ok) return(NULL)
       stop('invalid definition of ', par, ': must not be NULL!')
     } else {
-      stop('invalid pariable definition: ', var, '. ',
+      stop('Invalid variable definition: ', var, '. ',
            'Must be either character of length 1 ',
            'or right hand sided formula ',
            'specifying the pariable coding the ', par)
@@ -300,7 +376,7 @@ validate_var <-
     if(!is.null(data)) {
       in_data <- out%in%names(data)
       if(!in_data) {
-        stop('variable `', out, '` not found in data')
+        stop('Variable `', out, '` not found in data.')
       }
       if (!is.null(valid_values)) {
         data_values <- unique(data[[out]])
@@ -339,6 +415,7 @@ parse_block_term <-
 
     trial_var <- NULL
     block_vars <- NULL
+    cond_var <- NULL
     # message('length(block_call_parts): ', length(block_call_parts))
     # msg_var(block_call_parts)
     if(length(block_call_parts)==0) {
@@ -358,7 +435,12 @@ parse_block_term <-
       }
       block_vars <-
         all.vars(as.formula(paste0('~', block_call_parts[2]))[[2]])
-      if(length(block_call_parts)>2) {
+
+      if(length(block_call_parts)==3) {
+        cond_var <-
+          all.vars(as.formula(paste0('~', block_call_parts[3]))[[2]])
+      }
+      if(length(block_call_parts)>3) {
         warning('too many terms provided for block and trial definition, ',
                 'the following terms will be ignored: ',
                 toString(block_call_parts[3:length(block_call_parts)]))
@@ -369,8 +451,13 @@ parse_block_term <-
               'only the first, ', trial_var[1], ', will be used')
       trial_var <- trial_var[1]
     }
+    if (length(cond_var)>1L) {
+      warning('multiple variables listed for condition definition ',
+              'only the first, ', cond_var[1], ', will be used')
+      cond_var <- cond_var[1]
+    }
     type <- 'block'
-    brms:::nlist(type, trial_var, block_vars, term = block_term)
+    brms:::nlist(type, trial_var, block_vars, cond_var, term = block_term)
   }
 
 parse_block_call <-
@@ -601,51 +688,53 @@ normalize_transform_formula <-
       stop(form, ' is not a valid transform formula, ',
            'make sure to define a lhs in the formula.')
     }
-    lhs_str <- lhs_dp(lhs)
-    lhs_str <- gsub('\\s', '', lhs_str)
+    lhs_str <- lhs_dp(form, replace_ws = T)
+    rhs_str <- rhs_dp(form)
     is_transform_form <-
       is_transform_formula(form)
     if(!is_transform_form) {
       stop(form, ' is not a valid transform formula, ',
            'lhs must of the form `transform(var1[+var2...]])`')
     }
-    transform_vars_pos <-
-      gregexpr('transform\\(([^\\)]+)\\)', lhs_str)
-    transform_vars_match <-
-      regmatches(lhs_str, transform_fun_pos)[[1]][1]
+    lhs_var <- all.vars(lhs(form))
+    if (length(lhs_var)!=1L) {
+      message('form: ', form)
+      message('lhs_var: ', lhs_var)
+      stop('Transforms must have a single variable on the lhs ',
+           'indicating the parameter to transform.')
+    }
+    new_lhs_str <- gsub('transform\\(([^\\)]+)\\)', '\\1', lhs_str, perl = T)
     form_normalized <-
-      as.formula(paste0(transform_vars_match, '~', form[[3]]))
+      as.formula(paste0(new_lhs_str, '~', rhs_str))
     return(form_normalized)
   }
 
 validate_transform <-
-  function(transform, replace_x = T, add_raw = T) {
+  function(transform, replace_x = T, add_raw = T, replace_call = F) {
     has_lhs <- is.twosided(transform)
     if (!has_lhs) {
       stop('Transforms must have a single variable on the lhs ',
            'indicating the parameter to transform')
     }
-    lhs_var <- all.vars(transform[[2]])
+    lhs_var <- all.vars(lhs(transform))
     if (length(lhs_var)!=1L) {
       stop('Transforms must have a single variable on the lhs ',
-           'indicating the parameter to transform')
+           'indicating the parameter to transform.')
     }
-    rhs_vars <- all.vars(transform[[3]])
+    rhs_vars <- all.vars(rhs(transform))
     lhs_in_rhs <- lhs_var%in%rhs_vars
     if(!lhs_in_rhs && !replace_x) {
-      stop('Invalid transform sytax! ',
+      stop('Invalid transform syntax! ',
            'lhs value must be part of the rhs of the transform formula')
     }
-    lhs_chr <- deparse(transform[[2]])
-    rhs_chr <- deparse(transform[[3]])
-    x_in_rhs <- 'x'%in%all.vars(transform[[3]])
+    lhs_chr <- lhs_dp(transform)
+    rhs_chr <- rhs_dp(transform)
+    x_in_rhs <- 'x'%in%rhs_vars
     if(x_in_rhs&&replace_x) {
-      rhs_chr_replaced <-
-        gsub('(?<=[^A-z_\\.])x(?=[^A-z\\(_\\.])',
-             lhs_var,
-             rhs_chr,
-             perl = T)
-      transform <- as.formula(paste0(lhs_chr, ' ~ ', rhs_chr_replaced))
+      transform <- formula_replace(transform, 'r', '\\bx\\b', lhs_var)
+    }
+    if (replace_call) {
+      transform <- normalize_transform_formula(transform)
     }
     return(transform)
   }
@@ -679,16 +768,17 @@ parse_par_formulas <-
           NULL
         }
       form_lhs_str <- lhs_dp(form)
-      transform_lhs_str <- lhs_dp(transform)
       form_rhs_str <- rhs_dp(form)
-      transform_rhs_str <- rhs_dp(transform)
       # message('form: ', deparse1(form), ' (lhs: ', form_lhs_str, ')')
-      # message('transform: ', deparse1(transform), ' (lhs: ', transform_lhs_str, ')')
 
       if(!is.null(transform)) {
+        transform_lhs_str <- lhs_dp(transform, remove_ws = T)
+        transform_rhs_str <- rhs_dp(transform, remove_ws = T)
+        # message('transform: ', deparse1(transform),
+        #         ' (lhs: ', transform_lhs_str, ')')
+
         par_transforms[[form_nm]] <- NULL
 
-        transform_lhs_str <- lhs_dp(transform)
         transform_replacement_pattern <-
           paste0('(?<=[^A-z_\\.])(', transform_lhs_str, ')(?=[^A-z\\(_\\.])')
         transform <-
@@ -764,299 +854,129 @@ parse_par_formulas <-
         brms::nlf(transform, loop = F)
     }
     par_formulas <-
-      lapply(par_formulas, \(x) {environment(x) <- NULL; x})
+      # lapply(par_formulas, \(x) {environment(x) <- NULL; x})
     return(par_formulas)
   }
 
-
-
-
-
-# model formula -----------------------------------------------------------
-
-parse_blms_model_inputs <-
-  function(formula,
-           ...,
-           data = NULL,
-           model_class = NULL,
-           model_spec = NULL,
-           par_form = NULL,
-           par_transform = NULL,
-           model_func_has_blockgrp = F) {
-    message('=======================')
-    message('parse_blms_model_inputs')
-    message('=======================')
-    # return(NULL)
-    if(is.null(model_class)&&is.null(model_spec)) {
-      warning('No model specification provided, ',
-              'some post-processing functions may not work.',
-              'You can define a model specification using a valid model_class or ',
-              'provide the model specification with the `model_spec` argument')
-    }
-
-    if (missing(formula)) {
-      stop('formula must be specified')
-    } else {
-      msg_var(formula)
-    }
-    dots <- list(...)
-    # msg_var(dots)
-
-    if (missing(data)) {
-      message('no data provided')
-    }
-    # msg_var(data)
-
-    missing_model_class <- missing(model_class)
-    missing_model_spec <- missing(model_spec)
-    model_class <-
-      as_single_char(model_class)
-    # ToDo: validate model_spec
-
-    if (is.null(model_spec)) {
-      if(is.null(model_class)) {
-        stop('Neither model_class nor model_spec provided.',
-             'Please provide either a valid model class ',
-             '(one of: ', toString(names(get_all_model_specs())), ') ',
-             'or a valid model specification.')
-      } else if (!model_class%in%names(get_all_model_specs())) {
-        stop('no model_spec found for class "', model_class, '". ',
-             'please provide either a valid model class ',
-             '(one of: ', toString(names(get_all_model_specs())), ') ',
-             'or a valid model specification')
-      }
-      model_spec <- get_model_spec(model_class)
-    }
-    if (is.null(model_class)) {
-      if(is.null(model_spec)) {
-        # case already handled above
-        stop('Neither model_class nor model_spec provided.',
-             'Please provide either a valid model class ',
-             '(one of: ', toString(names(get_all_model_specs())), ') ',
-             'or a valid model specification.')
-      }
-      model_class = model_spec$class
-    }
-    msg_var(model_class)
-    # msg_var(model_spec)
-    model_pars <- get_parameter_names(model_spec)
-    msg_var(model_pars)
-
-    m <- model_spec
-    # ToDo: implement validation of model_spec
-    if(missing(par_form)) par_form <- m$par_form
-    if(missing(par_transform)) par_transform <- m$par_transform
-
-
-    # msg_var(formula)
-    # msg_var(data)
-    # msg_var(formula_only)
-    # msg_var(compile)
-    # msg_var(run)
-    # msg_var(model_class)
-
-
-
-    validate_not_blockgrp <-
-      function(x) {
-        if(is.null(model_spec$block_var)) return(x)
-        if (any(x==model_spec$block_var, na.rm=T)) {
-          stop('The variable name \', ', block_var, '\' ',
-               'is currently reserved as block_var in ', model_spec$class)
-        }
-        return(x)
-      }
-
-    resp_formula <- parse_response_formula(formula)
-    resp_var <-
-      sapply(
-        resp_formula$resp_var, validate_var,
-        par = 'response', data = data,
-        valid_value = validate_not_blockgrp
-      )
-    msg_var(resp_var)
-
-    pred_vars <-
-      sapply(
-        resp_formula$pred_vars, validate_var,
-        par = 'predictor', data = data,
-        valid_value = validate_not_blockgrp
-      )
-    msg_var(pred_vars)
-
-    block_vars <-
-      sapply(
-        resp_formula$aterms$block$block_vars, validate_var,
-        par = 'block', data = data, null_ok = T
-      )
-    msg_var(block_vars)
-
-    trial_var <-
-      sapply(
-        resp_formula$aterms$block$trial_var, validate_var,
-        par = 'trial', data = data, null_ok = T
-      )
-    msg_var(trial_var)
-
-    # extract formulas from dots
-    dots_is_formula <- sapply(dots, is.formula)
-    dots_formulas <- c()
-    if(length(dots_is_formula)) {
-      dots_formulas_idx <- which(dots_is_formula)
-      if(length(dots_formulas_idx)){
-        dots_formulas <- dots[dots_formulas_idx]
-        dots_formulas <- unlist(lapply(dots_formulas, split_by_lhs))
-        names(dots_formulas) <- sapply(dots_formulas, \(x) deparse(x[[2]]))
-        dots <- dots[-dots_formulas_idx]
-      }
-    }
-    # msg_var(dots_formulas)
-    # msg_var(dots)
-
-    dots_par_form_list <- list()
-    dots_par_transform_list <- list()
-
-    if(length(dots_formulas)) {
-      # extract nlp formulas from dots
-      dots_forms_in_model_pars <-
-        names(dots_formulas)%in%model_pars
-      dots_forms_in_model_pars_idx <-
-        which(dots_forms_in_model_pars)
-      if(length(dots_forms_in_model_pars_idx)) {
-        dots_par_form_list <-
-          dots_formulas[dots_forms_in_model_pars_idx]
-      }
-
-      # extract transform formulas from dots
-      dots_forms_in_transform_forms <-
-        sapply(dots_formulas, is_transform_formula)
-      dots_forms_in_transform_forms_idx <-
-        which(dots_forms_in_transform_forms)
-      if(length(dots_forms_in_transform_forms_idx)) {
-        dots_par_transform <-
-          dots_formulas[dots_forms_in_transform_forms_idx]
-        dots_par_transform_list <-
-          unlist(lapply(dots_par_transform, split_by_lhs))
-      }
-    }
-    # msg_var(dots_par_form_list)
-    # msg_var(dots_par_transform_list)
-
-    # default parameter formulas
-    default_par_form_list <-
-      unlist(lapply( m$par_form, split_by_lhs))
-    # msg_var(default_par_form_list)
-
-    arg_par_form <-
-      if(is.list(par_form)) par_form else list(par_form)
-    arg_par_form_split <-
-      unlist(lapply(arg_par_form, split_by_lhs))
-    # msg_var(arg_par_form_split)
-    arg_par_form_list <-
-      arg_par_form_split[is.element(names(arg_par_form_split), model_pars)]
-    # msg_var(arg_par_form_list)
-
-    model_par_forms <-
-      default_par_form_list
-    # by default, par_form is the same as default_par_form
-    # anything given via par_form argument
-    # should override formulas from the defaults
-    for (par in names(arg_par_form_list)) {
-      model_par_forms[[par]] <- arg_par_form_list[[par]]
-    }
-    # any further formulas given as argument should also override defaults and
-    # also formulas given by par_form
-    for (par in names(dots_par_form_list)) {
-      model_par_forms[[par]] <- dots_par_form_list[[par]]
-    }
-    # msg_var(model_par_forms)
-
-
-    # transforms of model parameters
-    ## default transforms
-    default_par_transform_split <-
-      unlist(lapply(m$par_transform, split_by_lhs))
-    default_par_transform_list <-
-      lapply(default_par_transform_split, validate_transform, replace_x = T)
-    # msg_var(default_par_transform_list)
-
-    ## given transforms
-    arg_par_transform <-
-      if(is.list(par_transform)) par_transform else list(par_transform)
-    # msg_var(arg_par_transform)
-    arg_par_transform_split <-
-      unlist(lapply(arg_par_transform, split_by_lhs))
-    # msg_var(arg_par_transform_split)
-    arg_par_transform_list <-
-      lapply(arg_par_transform_split, validate_transform, replace_x = T)
-    # msg_var(arg_par_transform_list)
-
-    model_par_transforms <-
-      default_par_transform_list
-    # by default, par_transform is the same as default_par_transform
-    # anything given via par_transform argument
-    # should override formulas from the defaults
-    for (par in names(arg_par_transform_list)) {
-      model_par_transforms[[par]] <- arg_par_transform_list[[par]]
-    }
-    # any further formulas given as argument should also override defaults and
-    # also formulas given by par_transform
-    for (par in names(dots_par_transform_list)) {
-      model_par_transforms[[par]] <- dots_par_transform_list[[par]]
-    }
-    # msg_var(model_par_transforms)
-
-    parameter_formulas <-
-      parse_par_formulas(
-        model_par_forms, model_par_transforms,
-        model_pars = model_pars, data = data
-      )
-    # msg_var(parameter_formulas)
-    parameter_formulas <- unlist(parameter_formulas, recursive = F)
-    # names(parameter_formulas) <- NULL
-    # msg_var(parameter_formulas)
-
-    # return()
-    data_vars <- c(resp_var, pred_vars, block_vars)
-    data_vars <- c(resp_var, pred_vars, m$block_var)
-    model_func_inputs <- c(data_vars, model_pars)
-    model_function <- m$func_name
-    response_formula <-
-      as.formula(
-        paste0(
-          lhs_dp(formula), ' ~ ',
-          model_function, '(', paste(model_func_inputs, collapse = ', '), ')'
-        )
-      )
-    msg_var(response_formula)
-    msg_var(parameter_formulas)
-
-
-    bf_args_list <-
-      c(formula = response_formula,
-        parameter_formulas,
-        list(
-          family = m$family,
-          nl = T,
-          loop = F
-        )
-      )
-    # msg_var(bf_args_list)
-    model_form <-
-      brms::do_call(brms::brmsformula, bf_args_list)
-    # msg_var(model_form)
-    mf <- list(
-      model_class = model_class,
-      model_spec = model_spec,
-      response_formula = resp_formula,
-      parameter_formulas = parameter_formulas,
-      resp_var = resp_var,
-      pred_vars = pred_vars,
-      block_vars = block_vars,
-      trial_var = trial_var,
-      brmsformula = model_form
-    )
-    class(mf) <- c('blmsmodelinfo', class(mf))
-    message('=======================')
-    return(mf)
+pred_vars_model_func_call <-
+  function(call_info, model_spec) {
+    if (length(call_info)==1) call_info <- call_info[[1]]
+    args <- call_info$args
+    if (length(args) != length(model_spec$func_input)) return(NULL)
+    unlist(args[2:(length(model_spec$fun_data)+1)])
   }
+
+substitute_model_func <-
+  function(in_form, model_spec, dec_var) {
+
+    resp_var <- all.vars(lhs(in_form))[1]
+
+    pred_vars <- NULL
+    n_pred_vars <- length(model_spec$pred_vars)
+    rhs_call_info <- call_info_lhs(in_form)
+    rhs_call_model_func <- Filter(\(x)x$fun_name == model_spec$func_name,
+                                  rhs_call_info)
+    if (length(rhs_call_model_func)) {
+
+      if (length(rhs_call_model_func)==1) {
+        pred_vars <- pred_vars_model_func_call(rhs_call_model_func)
+          if(!is.null(pred_vars)) {
+
+          message('Parameter formula for parameter already contains model func.')
+          out_form <- in_form
+          attributes(out_form) <- attributes(in_form)
+          attr(out_form, 'loop') <- F
+          attr(out_form, 'nl') <- T
+          return(list(formula = out_form, pred_vars = pred_vars))
+          } else {
+            stop('Model func has wrong number of input arguments.')
+          }
+      } else {
+        stop('Cannot call model func twice.')
+      }
+    } else {
+
+      pred_vars <- all.vars(rhs(in_form))
+      if(length(pred_vars)!=n_pred_vars) {
+        stop('Number of arguments for model func \'', model_spec$func_name,
+             '()\' specified in formula \n', in_form, '\ndoes not match ',
+             'the number of expected arguments defined in model_spec (',
+             'n=', n_pred_vars, ': ', toString(model_spec$pred_vars), ').')
+      }
+      data_vars <- c(
+        model_spec$block_var,
+        ifelse(is.null(dec_var), resp_var, dec_var),
+        pred_vars
+      )
+      model_pars <- model_spec$func_params
+      model_func_inputs <- c(data_vars, model_pars)
+
+      out_form <- as.formula(paste0(lhs_dp(in_form), ' ~ ',
+                                    model_spec$func_name, '(',
+                                    paste(model_func_inputs, collapse = ', '),
+                                    ')'))
+      attributes(out_form) <- attributes(in_form)
+      attr(out_form, 'loop') <- F
+      attr(out_form, 'nl') <- T
+      return(list(formula = out_form, pred_vars = pred_vars))
+    }
+  }
+
+parse_brms_blms <-
+  function(brmsformula, model_spec) {
+    resp_var <- all.vars(lhs(brmsformula))[1]
+    lhs_call_info <- call_info_lhs(brmsformula$formula)
+    dec_call <- Filter(\(x)x$fun_name == 'dec', lhs_call_info)
+    n_pred_vars <- length(model_spec$pred_vars)
+    dec_var <- NULL
+    pred_vars <- NULL
+    if (length(dec_call)>0) {
+      if (length(dec_call)>1L) {
+        warning('Only single definition of decision variable by dec() ',
+                'is allowed. Further calls will be ignored (and might ',
+                'trigger an error in brms).')
+      }
+      dec_call <- dec_call[[1]]
+      dec_var <- all.vars(dec_call$arguments[[1]])[1]
+    }
+    if (model_spec$func_par == 'mu') {
+      in_form <- brmsformula$formula
+      form_info <- substitute_model_func(in_form, model_spec, dec_var)
+      out_form <- form_info$formula
+      pred_vars <- form_info$pred_vars
+      brmsformula$formula <- out_form
+    } else {
+      func_par_available = model_spec$func_par %in% names(brmsformula$pforms)
+      if(!func_par_available) {
+        stop('Parameter formula for parameter \'', model_spec$func_par, '\', ',
+             'supposed to contain the model function, not found.')
+      }
+      func_par <- model_spec$func_par
+      fform <- NULL
+      fform_rhs_vars <- NULL
+      while(T) {
+        fform <- brmsformula$pforms[[func_par]]
+        # msg_var(fform)
+        if(is.null(fform)) break
+        fform_rhs_vars <- all.vars(rhs(fform))
+        # msg_var(fform_rhs_vars)
+        if (paste0(func_par, 'raw')%in%fform_rhs_vars) {
+          func_par <- paste0(func_par, 'raw')
+        } else {
+          break
+        }
+      }
+      if(is.null(fform)) {
+        stop('Parameter formula for parameter \'', model_spec$func_par, '\', ',
+             'supposed to contain the model function, not found.')
+      }
+      in_form <- fform
+      form_info <- substitute_model_func(in_form, model_spec, dec_var)
+      out_form <- form_info$formula
+      pred_vars <- form_info$pred_vars
+      brmsformula$pforms[[func_par]] <- out_form
+    }
+    return(list(formula = brmsformula, pred_vars = pred_vars))
+  }
+
+

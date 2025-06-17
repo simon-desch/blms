@@ -139,7 +139,7 @@ parse_call <- function(
     expr, recursive = T, include_names = T, include_math_operators = F
 ) {
   if(!is.call(expr)&& !is.name(expr)) stop('expr must be a call or a name')
-  msg_var(expr)
+  # msg_var(expr)
 
   prev_call <- NULL
   # if (inherits(expr, 'formula')) prev_call <- expr[-1]
@@ -207,6 +207,7 @@ parse_call <- function(
           fun_name = fn_name,
           arguments = as.list(expr[-1]),
           has_nested_calls = has_nested_calls(expr),
+          is_call = is.call(expr),
           is_math_operator = fn_name %in% math_operators,
           is_group_call = fn_name %in% group_calls,
           is_known_r = exists(fn_name, mode = "function", inherits = TRUE),
@@ -740,7 +741,7 @@ parse_block_formula <-
           warning('Cannot use function definition\n',
                   get_stanfun_header(fun_def), '\n',
                   'Number of input arguments in Stan function (',
-                  length(fun_def$args), ') doess not match the number of ',
+                  length(fun_def$args), ') does not match the number of ',
                   'input arguments of the function defined in the formula.')
           invalid_funs_idx <- c(invalid_funs_idx, i)
         }

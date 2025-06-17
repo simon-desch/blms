@@ -242,14 +242,14 @@ plot_model_par <- function(
     ggplot2::labs(
       x = paste(nlpar),
       y = "Condition",
-      title = paste(ifelse(method=='predict', 'Predicted', 'Expected'),
-                    'distribution', rep('s', min(1, length(input_vars))),
+      title = paste0(ifelse(method=='predict', 'Predicted', 'Expected'),
+                    ' distribution', rep('s', min(1, length(input_vars))),
                     ' of ', nlpar)
     ) +
-    ggplot2::scale_fill_brewer(
-      name = if (length(input_vars))
+    ggplot2::scale_fill_brewer(guide = guide_legend(title =
+      if (length(input_vars))
         paste(input_vars, collapse=':')
-      else 'grand mean'
+      else 'grand mean'), type = 'qual', palette = 'Set3'
       ) +
     ggplot2::theme_classic()
 }

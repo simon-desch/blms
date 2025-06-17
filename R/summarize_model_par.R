@@ -29,8 +29,15 @@ remove_bar_terms <- function(expr) {
   }
   math_operators <- c("+", "-", "*", "/", "^", ":", "|")#, "~", "$", "[", "[[")
   if (!is.call(expr)) return(expr)
-  if (expr[[1]] == as.name("(")) return(NULL)
-  if (expr[[1]] == as.name("|")) return(NULL)
+  if (expr[[1]] == as.name("(")){
+    nested_calls <- expr[-1][sapply(expr[-1], is.call)]
+    if(length(nested_calls)) {
+      if(any(sapply(nested_calls, \(x)x[[1]]==as.name('|')))) {
+        return(NULL)
+      }
+    }
+  }
+  # if (expr[[1]] == as.name("|")) return(NULL)
   expr[] <- lapply(expr, remove_bar_terms)
   expr <- expr[!vapply(expr, is.null, logical(1))]
   if (deparse1(expr[[1]]) %in%math_operators && length(expr)==2)
@@ -92,24 +99,24 @@ get_nlpar_predictors <-
 #' @keywords internal
 #' @export
 get_all_model_predictors <- function(formula_obj, data_vars) {
-  rhs_syms <- extract_symbols(remove_bar_terms(formula_obj$formula))
+  # rhs_syms <- extract_symbols(remove_bar_terms(formula_obj$formula))
   required <- character()
-
-  for (sym in rhs_syms) {
-    if (sym %in% names(formula_obj$pforms)) {
-      required <- c(required, get_nlpar_predictors(sym, formula_obj, data_vars))
-    } else if (sym %in% data_vars) {
-      required <- c(required, sym)
-    }
-  }
-
+#
+#   for (sym in rhs_syms) {
+#     if (sym %in% names(formula_obj$pforms)) {
+#       required <- c(required, get_nlpar_predictors(sym, formula_obj, data_vars))
+#     } else if (sym %in% data_vars) {
+#       required <- c(required, sym)
+#     }
+#   }
+  required <- all.vars(brms::brmsterms(formula_obj)$allvars)
   unique(required)
 }
 
 #' get nlpars used in other nlpar formula
 #'
 #' @param formula `brmsformula`
-#' @param nlpar `nlpar` for which used nlpars shuld be return
+#' @param nlpar `nlpar` for which used nlpars should be return
 #'
 #' @returns character vector
 #' @export
@@ -227,7 +234,9 @@ average_over <- function(df, varname, collapse_factors, weight = NULL, auto_weig
   }
 
   # Generate grouping ID for the group_vars
-  grp_id <- interaction(df[group_vars], drop = TRUE)
+  grp_id <- interaction(df[group_vars], drop = TRUE, sep = '__')
+  # grp_id2 <- interaction(df[group_vars], drop = TRUE, sep = '__', lex.order = T)
+  # grp_id <- interaction(df[, group_vars], drop = TRUE, sep = '__')
 
   # Use rowsum to get sum of values and weights per group
   value_sum <- rowsum(df[[varname]] * weights, grp_id)
@@ -237,7 +246,7 @@ average_over <- function(df, varname, collapse_factors, weight = NULL, auto_weig
   weighted_means <- value_sum / weight_sum
 
   # Recover group keys from row names
-  group_levels <- strsplit(rownames(weighted_means), split = "\\.")
+  group_levels <- strsplit(rownames(weighted_means), split = '__')
   group_df <- as.data.frame(do.call(rbind, group_levels), stringsAsFactors = FALSE)
   # msg_var(group_df)
   # msg_var(group_vars)
@@ -305,6 +314,7 @@ get_nlpar_pred_grid <- function(
   model_formula <- fit$formula
   data <- fit$data
   data_vars <- names(data)
+  # msg_var(data_vars)
 
   if (length(lme4::findbars(formula)) > 0) {
     warning('Group-level terms found in formula. ',
@@ -317,6 +327,7 @@ get_nlpar_pred_grid <- function(
   nlpar_predictors <- get_nlpar_predictors(nlpar, model_formula, data_vars)
   # msg_var(nlpar_predictors)
   model_predictors <- get_all_model_predictors(model_formula, data_vars)
+  # msg_var(model_predictors)
   all_valid_predictors <- union(nlpar_predictors, model_predictors)
   additional_model_predictors <- setdiff(model_predictors, nlpar_predictors)
 
@@ -332,8 +343,12 @@ get_nlpar_pred_grid <- function(
          'Additional: ',
          paste(input_vars[!input_vars %in% all_valid_predictors]))
   }
-  grand_mean_predictors_fixed <- setdiff(nlpar_predictors, input_vars)
+  block_grp <- fit$blms_formula$model_spec$block_var
+  # msg_var(block_grp)
+  grand_mean_predictors_fixed <-
+    setdiff(nlpar_predictors, c(input_vars, block_grp))
   # msg_var(grand_mean_predictors_fixed)
+
 
   # Predictor grid construction
   missing_vars <- setdiff(all_valid_predictors, input_vars)
@@ -358,14 +373,17 @@ get_nlpar_pred_grid <- function(
          'Additional: ', toString(undefined_re_vars))
   }
   all_predictors <- union(all_predictors, re_vars)
+  # msg_var(all_predictors)
 
 
   values_list <- list()
   average_factors <- c()
   for (var in all_predictors) {
+    # message('var: ', var)
     if (!var %in% names(data)) stop("Variable '", var, "' not found in data")
     #print(head(data))
     x <- data[[var]]
+    # msg_var(x)
 
     if (!is.null(predictor_values[[var]])) {
       values_list[[var]] <- predictor_values[[var]]
@@ -393,7 +411,11 @@ get_nlpar_pred_grid <- function(
         #         'because it is in grand_mean_predictors_fixed')
         average_factors <- c(average_factors, var)
       }
-    } else if (var %in% grand_mean_predictors_fixed) {
+    } else if (var==block_grp) {
+      # message('is blockgrp')
+      values_list[[var]] <- 1
+    }else if (var %in% grand_mean_predictors_fixed) {
+      # message('grand_mean_predictors_fixed')
       values_list[[var]] <- NULL
       if (is.factor(x)) {
         fctr_contrs <- contrasts(x)
@@ -416,11 +438,11 @@ get_nlpar_pred_grid <- function(
           average_factors <- c(average_factors, var)
         }
       } else if (is.numeric(x)) {
-        values[[var]] <- mean(x, na.rm = TRUE)
+        values_list[[var]] <- mean(x, na.rm = TRUE)
       }
       if(is.null(values_list[[var]]))
         stop("Unsupported type for fallback var: ", var)
-    } else if (var%in%additional_model_predictors) {
+    }  else if (var%in%additional_model_predictors) {
       values_list[[var]] <-
         if (is.factor(x)) levels(x)[1]
       else if (is.character(x)) unique(x)[1]
@@ -432,12 +454,14 @@ get_nlpar_pred_grid <- function(
     }
   }
 
+  # msg_var(values_list)
   new_data <- expand.grid(values_list, stringsAsFactors = FALSE)
 
   # Retype to match original
   new_data <- df_copy_classes(new_data, data)
   class(new_data) <- c('nlpar_pred_grid', class(new_data))
   attr(new_data, 'average_factors') <- average_factors
+  # msg_var(new_data)
 
   return(new_data)
 }
@@ -481,6 +505,7 @@ get_nlpar_draws <- function(
     new_data = NA
 ) {
 
+  # message('get_nlpar_draws: ', nlpar)
   if (!inherits(fit, 'brmsfit')) {
     stop('Need brmsfit object to plot model pars')
   }
@@ -521,6 +546,7 @@ get_nlpar_draws <- function(
   nlpar_predictors <- get_nlpar_predictors(nlpar, model_formula, data_vars)
   msg_var(nlpar_predictors)
   model_predictors <- get_all_model_predictors(model_formula, data_vars)
+  msg_var(nlpar_predictors)
   all_valid_predictors <- union(nlpar_predictors, model_predictors)
   additional_model_predictors <- setdiff(model_predictors, nlpar_predictors)
 
@@ -611,7 +637,7 @@ get_nlpar_draws <- function(
           average_factors <- c(average_factors, var)
         }
       } else if (is.numeric(x)) {
-        values[[var]] <- mean(x, na.rm = TRUE)
+        values_list[[var]] <- mean(x, na.rm = TRUE)
       }
       if(is.null(values_list[[var]]))
         stop("Unsupported type for fallback var: ", var)
@@ -638,11 +664,17 @@ get_nlpar_draws <- function(
     if (method == "epred") tidybayes::epred_draws else
       if (method == 'linpred') tidybayes::linpred_draws else
         tidybayes::predicted_draws
+  # message('new_data: ', toString(names(new_data)), ' (nrow: ', nrow(new_data), ')')
+  # msg_var(new_data)
+  # print(head(new_data))
+  # message('re_formula: ', toString(re_formula))
+  # message('nlpar: ', toString(nlpar))
   long_preds <-
     pred_fun(fit, newdata = new_data,
              re_formula = re_formula, nlpar = nlpar, value = nlpar)
   long_preds <-
     long_preds[, !names(long_preds)%in%c('.chain', '.iteration', '.row')]
+  # msg_var(long_preds)
   # keep .draw to perform averaging within each draws
   # long_preds <-
   #   long_preds[, -grep('^\\.', names(long_preds))]
@@ -651,6 +683,7 @@ get_nlpar_draws <- function(
   if(inherits(new_data, 'nlpar_pred_grid')) {
     average_factors <- attr(new_data, 'average_factors')
   }
+  # msg_var(average_factors)
   average_factors_len <- length(average_factors)
   if (average_factors_len) {
     # message('Averaging across levels of factor',
@@ -659,6 +692,7 @@ get_nlpar_draws <- function(
     long_preds <-
       average_over(long_preds, nlpar, average_factors)
   }
+  # msg_var(long_preds)
   #  pred_fun <- if (method == "epred") brms::posterior_epred else
   #   if (method == 'linpred') brms::posterior_linpred else
   #     brms::posterior_predict
@@ -763,6 +797,9 @@ summarize_model_par <-
     nlpar_draws <-
       do.call(get_nlpar_draws, get_nlpar_draws_args)
 
+    # msg_var(nlpar_draws)
+    # message('draws: ', toString(unique(nlpar_draws$.draw)))
+
     pop_vars <- NULL
     if('by'%in%names(dots)) {
       pop_vars <- if (is.formula(dots$by)) all.vars(dots$by) else dots$by
@@ -813,8 +850,16 @@ summarize_model_par <-
         unique(nlpar_draws_ext$new_col_names)
       nlpar_draws_ext <-
         nlpar_draws_ext[, !names(nlpar_draws_ext)%in%'new_col_names']
+      na_cols <-
+        names(nlpar_draws_ext)[which(sapply(names(nlpar_draws_ext), \(x) all(is.na(nlpar_draws_ext[[x]]))))]
+      # msg_var(na_cols)
+      nlpar_draws_ext <-
+        nlpar_draws_ext[, !names(nlpar_draws_ext)%in%na_cols]
+
       id_vars <-
         names(nlpar_draws_ext)[!names(nlpar_draws_ext)%in%c('names_from', nlpar)]
+      # msg_var(nlpar_draws_ext)
+      # msg_var(id_vars)
       nlpar_draws_ <- reshape(as.data.frame(nlpar_draws_ext),
                                   idvar = id_vars, #'.draw',
                                   timevar = 'names_from',
@@ -823,6 +868,7 @@ summarize_model_par <-
                                   )
     }
       # message('nrows(nlpar_draws_): ', nrow(nlpar_draws_))
+    # msg_var(nlpar_draws_)
 
     default_draws_summary_args <-
       c(list(draws = as_draws_df(nlpar_draws_), variables = sum_vars),

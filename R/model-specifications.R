@@ -7,7 +7,7 @@
 hmm_rp_model_func <-
   brms::stanvar(
     scode = '
-    vector hmm_rp_probs(vector choice, vector reward, vector block_grp, vector gamma_vec, vector c_vec, vector d_vec) {
+    vector hmm_rp_probs(vector block_grp, vector choice, vector reward, vector gamma_vec, vector c_vec, vector d_vec) {
 
 
     int nT = size(choice);
@@ -129,7 +129,7 @@ hmm_rp_model_func2 <-
 ql_2a_it_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_2a_it_probs(vector choice, vector reward, vector block_grp, vector alphapos, vector alphaneg, vector tau) {
+  vector ql_2a_it_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector tau) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -139,8 +139,8 @@ ql_2a_it_model_func <-
     real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -180,18 +180,17 @@ ql_2a_it_model_func <-
 ql_a_it_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_it_probs(vector choice, vector reward, vector block_grp, vector alpha, vector tau) {
+  vector ql_a_it_probs(vector block_grp, vector choice, vector reward, vector alpha, vector tau) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
     vector[2] Qs;       // expectation value
     vector[2] Qs_init;  // initial expectation values
     real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -213,7 +212,7 @@ ql_a_it_model_func <-
       PE = (reward[n]) - Qs[ci];
 
       // value updating (learning)
-      Qs[ci] += alpha * PE;
+      Qs[ci] += alpha[n] * PE;
 
     } // trial loop
 
@@ -229,7 +228,7 @@ ql_a_it_model_func <-
 ql_2a_xi_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_2a_xi_probs(vector choice, vector reward, vector block_grp, vector alphapos, vector alphaneg, vector xi) {
+  vector ql_2a_xi_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector xi) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -239,8 +238,8 @@ ql_2a_xi_model_func <-
     real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -278,18 +277,17 @@ ql_2a_xi_model_func <-
 ql_a_xi_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_xi_probs(vector choice, vector reward, vector block_grp, vector alpha, vector xi) {
+  vector ql_a_xi_probs(vector block_grp, vector choice, vector reward, vector alpha, vector xi) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
     vector[2] Qs;       // expectation value
     vector[2] Qs_init;  // initial expectation values
     real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -311,7 +309,7 @@ ql_a_xi_model_func <-
       PE = (reward[n]) - Qs[ci];
 
       // value updating (learning)
-      Qs[ci] += alpha * PE;
+      Qs[ci] += alpha[n] * PE;
 
     } // trial loop
 
@@ -326,7 +324,7 @@ ql_a_xi_model_func <-
 ql_2a_rho_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_2a_rho_probs(vector choice, vector reward, vector block_grp, vector alphapos, vector alphaneg, vector rho) {
+  vector ql_2a_rho_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rho) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -336,8 +334,8 @@ ql_2a_rho_model_func <-
     real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -375,18 +373,17 @@ ql_2a_rho_model_func <-
 ql_a_rho_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_rho_probs(vector choice, vector reward, vector block_grp, vector alpha, vector rho) {
+  vector ql_a_rho_probs(vector block_grp, vector choice, vector reward, vector alpha, vector rho) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
     vector[2] Qs;       // expectation value
     vector[2] Qs_init;  // initial expectation values
     real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -408,7 +405,7 @@ ql_a_rho_model_func <-
       PE = (rho[n]*reward[n]) - Qs[ci];
 
       // value updating (learning)
-      Qs[ci] += alpha * PE;
+      Qs[ci] += alpha[n] * PE;
 
     } // trial loop
 
@@ -423,7 +420,7 @@ ql_a_rho_model_func <-
 ql_2a_2rho_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_2a_2rho_probs(vector choice, vector reward, vector block_grp, vector alphapos, vector alphaneg, vector rhopos, vector rhoneg) {
+  vector ql_2a_2rho_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rhopos, vector rhoneg) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -434,8 +431,8 @@ ql_2a_2rho_model_func <-
     real rho;           // effective reward sensitivity (rhopos or rhoneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -474,19 +471,18 @@ ql_2a_2rho_model_func <-
 ql_a_2rho_model_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_rho_probs(vector choice, vector reward, vector block_grp, vector alpha, vector rhopos, vector rhoneg) {
+  vector ql_a_2rho_probs(vector block_grp, vector choice, vector reward, vector alpha, vector rhopos, vector rhoneg) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
     vector[2] Qs;       // expectation value
     vector[2] Qs_init;  // initial expectation values
     real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    real alpha;         // effective reward sensitivity (alphapos or alphaneg, respectively)
+    real rho;           // effective reward sensitivity (alphapos or alphaneg, respectively)
     vector[2] Ps;       // probabilities based on the softmax of the Q values
     int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "upper bound" (coded as 1)
-                        // 2 corresponds to the "lower bound" (coded as 0)
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
 
     Qs_init = rep_vector(0.0, 2);
     Qs = Qs_init;
@@ -505,9 +501,139 @@ ql_a_2rho_model_func <-
       Ps_out[n] = Ps[2]; // predicting upper bound
 
       // prediction error
-      PE = (rho[n]*reward[n]) - Qs[ci];
+      rho = (reward[n] > 0 ? rhopos[n] : rhoneg[n]);
+      PE = (rho*reward[n]) - Qs[ci];
 
       // value updating (learning)
+      Qs[ci] += alpha[n] * PE;
+
+    } // trial loop
+
+    return Ps_out;
+  }
+    ',
+    block = 'functions'
+  )
+
+
+### ql_a_2rho_fu_model_func -----------------------------------------------------
+
+ql_a_2rho_fu_model_func <-
+  brms::stanvar(
+    scode = '
+  vector ql_a_2rho_fu_probs(vector block_grp, vector choice, vector reward, vector alpha, vector rhopos, vector rhoneg) {
+
+    //      ⣾⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⠀⠀⣰⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⠀⢰⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⢀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⣄⣀⣀⣤⣤⣶⣾⣿⣿⣿⡷
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀
+    //  ⣿⣿⣿⡇⠀⡾⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠁⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣧⡀⠁⣀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠉⢹⠉⠙⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣀⠀⣀⣼⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠀⠤⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⣿⣿⠿⣿⣿⣿⣿⣿⣿⣿⠿⠋⢃⠈⠢⡁⠒⠄⡀⠈⠁⠀⠀⠀⠀⠀⠀⠀
+    //  ⣿⣿⠟⠁⠀⠀⠈⠉⠉⠁⠀⠀⠀⠀⠈⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    //  ⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+
+    int nT = size(choice);
+    vector[nT] Ps_out;
+
+    vector[2] Qs;       // expectation value
+    vector[2] Qs_init;  // initial expectation values
+    real PE;            // prediction error
+    real PE_unchosen;   // prediction error for uchosen options
+    real rho;           // effective reward sensitivity (alphapos or alphaneg, respectively)
+    vector[2] Ps;       // probabilities based on the softmax of the Q values
+    int ci;             // index of the choice for which the ev needs to be updated
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
+
+    Qs_init = rep_vector(0.0, 2);
+    Qs = Qs_init;
+
+    for (n in 1:nT) {
+
+      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
+        Qs = Qs_init;
+      }
+
+      // get choice of current trial (either 1 or 2)
+      ci = (choice[n]==1 ? 2 : 1);
+
+      // compute action probabilities
+      Ps = softmax(Qs);
+      Ps_out[n] = Ps[2]; // predicting upper bound
+
+      // prediction error
+      rho = (reward[n] > 0 ? rhopos[n] : rhoneg[n]);
+      PE = (rho*reward[n]) - Qs[ci];
+      PE_unchosen = (rho*(reward[n]*-1)) - Qs[3-ci];
+
+
+      // value updating (learning)
+      Qs[ci] += alpha[n] * PE;
+      Qs[3-ci] += alpha[n] * PE_unchosen; # ficticious update
+
+    } // trial loop
+
+    return Ps_out;
+  }
+    ',
+    block = 'functions'
+  )
+
+### qlddm_2a_qdiff_model_func ---------------------------------------------
+
+
+qlddm_2a_qdiff_model_func <-
+  brms::stanvar(
+    scode = '
+  vector ql_2a_qdiff(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg) {
+    int nT = size(choice);
+    vector[nT] Qdiffs_out;
+
+    vector[2] Qs;       // expectation value
+    vector[2] Qs_init;  // initial expectation values
+    real PE;            // prediction error
+    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
+    vector[2] Ps;       // probabilities based on the softmax of the Q values
+    int ci;             // index of the choice for which the ev needs to be updated
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
+
+    Qs_init = rep_vector(0.0, 2);
+    Qs = Qs_init;
+
+    for (n in 1:nT)  {
+
+      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
+        Qs = Qs_init;
+      }
+      if(block_grp[n]==0) {
+        Qdiffs_out[n] = 0.0;
+        continue;
+      }
+
+      // get choice of current trial (either 1 or 2)
+      ci = (choice[n]==1 ? 2 : 1);
+
+      // compute action probabilities
+      Qdiffs_out[n] = Qs[2]-Qs[1]; // predicting upper bound
+
+      // prediction error
+      PE = (reward[n]) - Qs[ci];
+
+      // value updating (learning)
+      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
       Qs[ci] += alpha * PE;
 
     } // trial loop
@@ -517,6 +643,116 @@ ql_a_2rho_model_func <-
     ',
     block = 'functions'
   )
+
+### qlddm_2a_qdiff_nu_model_func ---------------------------------------------
+
+
+qlddm_2a_qdiff_nu_model_func <-
+  brms::stanvar(
+    scode = '
+  vector qlddm_2a_qdiff_nu(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector nu) {
+    int nT = size(choice);
+    vector[nT] nu_out;
+
+    vector[2] Qs;       // expectation value
+    vector[2] Qs_init;  // initial expectation values
+    real PE;            // prediction error
+    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
+    vector[2] Ps;       // probabilities based on the softmax of the Q values
+    int ci;             // index of the choice for which the ev needs to be updated
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
+
+    Qs_init = rep_vector(0.0, 2);
+    Qs = Qs_init;
+
+    for (n in 1:nT)  {
+
+      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
+        Qs = Qs_init;
+      }
+      if(block_grp[n]==0) {
+        nu_out[n] = 0.0;
+        continue;
+      }
+
+      // get choice of current trial (either 1 or 2)
+      ci = (choice[n]==1 ? 2 : 1);
+
+      // compute action probabilities
+      nu_out[n] = nu[n]*(Qs[2]-Qs[1]); // predicting upper bound
+
+      // prediction error
+      PE = (reward[n]) - Qs[ci];
+
+      // value updating (learning)
+      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
+      Qs[ci] += alpha * PE;
+
+    } // trial loop
+
+    return nu_out;
+  }
+    ',
+    block = 'functions'
+  )
+
+
+
+
+### qlddm_a_qdiff_nu_model_func ---------------------------------------------
+
+
+qlddm_a_qdiff_nu_model_func <-
+  brms::stanvar(
+    scode = '
+  vector qlddm_a_qdiff_nu(vector block_grp, vector choice, vector reward, vector eta, vector nu) {
+    int nT = size(choice);
+    vector[nT] nu_out;
+
+    vector[2] Qs;       // expectation value
+    vector[2] Qs_init;  // initial expectation values
+    real PE;            // prediction error
+    vector[2] Ps;       // probabilities based on the softmax of the Q values
+    int ci;             // index of the choice for which the ev needs to be updated
+                        // 1 corresponds to the "lower bound" (coded as 0)
+                        // 2 corresponds to the "upper bound" (coded as 1)
+
+    Qs_init = rep_vector(0.0, 2);
+    Qs = Qs_init;
+
+    for (n in 1:nT)  {
+
+      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
+        Qs = Qs_init;
+      }
+      if(block_grp[n]==0) {
+        nu_out[n] = 0.0;
+        continue;
+      }
+
+      // get choice of current trial (either 1 or 2)
+      ci = (choice[n]==1 ? 2 : 1);
+
+      // compute action probabilities
+      nu_out[n] = nu[n]*(Qs[2]-Qs[1]); // predicting upper bound
+
+      // prediction error
+      PE = (reward[n]) - Qs[ci];
+
+      // value updating (learning)
+      Qs[ci] += eta[n] * PE;
+
+    } // trial loop
+
+    return nu_out;
+  }
+    ',
+    block = 'functions'
+  )
+
+
+
 
 ## model specs -------------------------------------------------------------
 
@@ -543,6 +779,10 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'hmm_rp_probs',
             func_stanvar = hmm_rp_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'gamma', 'c', 'd'),
+            func_data = c('choice', 'reward'),
+            func_params = c('gamma', 'c', 'd'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(gamma ~1, c ~1, d ~1),
             par_transform =
@@ -563,6 +803,10 @@ get_all_model_specs <-
             block_var = NULL,
             func_name = 'hmm_rp_probs',
             func_stanvar = hmm_rp_model_func2,
+            func_input = c('choice', 'reward', 'gamma', 'c', 'd'),
+            func_data = c('choice', 'reward'),
+            func_params = c('gamma', 'c', 'd'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(gamma ~1, c ~1, d ~1),
             par_transform =
@@ -582,6 +826,10 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_a_it_probs',
             func_stanvar = ql_a_it_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alpha', 'tau'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alpha', 'tau'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alpha ~1, tau ~1),
             par_transform =
@@ -602,6 +850,10 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_2a_it_probs',
             func_stanvar = ql_2a_it_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'tau'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alphapos', 'alphaneg', 'tau'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alphapos ~1, alphaneg ~1, tau ~1),
             par_transform =
@@ -621,6 +873,10 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_a_xi_probs',
             func_stanvar = ql_a_xi_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alpha', 'xi'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alpha', 'xi'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alpha ~1, xi ~1),
             par_transform =
@@ -641,6 +897,10 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_2a_xi_probs',
             func_stanvar = ql_2a_xi_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'xi'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alphapos', 'alphaneg', 'xi'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alphapos ~1, alphaneg ~1, xi ~1),
             par_transform =
@@ -660,10 +920,14 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_a_rho_probs',
             func_stanvar = ql_a_rho_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alpha', 'rho'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alpha', 'rho'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alpha ~1, rho ~1),
             par_transform =
-              list(alpha ~ inv_logit(alpha))
+              list(alpha ~ inv_logit(alpha), rho ~ inv_logit(rho) * 20)
           ),
         ql_2a_rho =
           list(
@@ -679,10 +943,14 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_2a_rho_probs',
             func_stanvar = ql_2a_rho_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'rho'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alphapos', 'alphaneg', 'rho'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alphapos ~ 1, alphaneg ~ 1, rho ~ 1),
             par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x))
+              list(alphapos + alphaneg ~ inv_logit(x), rho ~ inv_logit(rho) * 20)
           ),
         ql_a_2rho =
           list(
@@ -698,10 +966,37 @@ get_all_model_specs <-
             block_var = 'blockgrp',
             func_name = 'ql_a_2rho_probs',
             func_stanvar = ql_a_2rho_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alpha', 'rhospos', 'rhoneg'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alpha', 'rhopos', 'rhoneg'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alpha ~1, rhopos ~1, rhoneg ~1),
             par_transform =
-              list(alpha ~ inv_logit(alpha))
+              list(alpha ~ inv_logit(alpha), rhopos + rhoneg ~ inv_logit(x) * 20)
+          ),
+        ql_a_2rho_fu =
+          list(
+            class = 'ql_a_2rho_fu',
+            description = 'Rescorla-Wagner delta learning model with single learning rate and separate reward sensitivity parameters for positive and negative outcomes plus fictitious update of unchosen option',
+            parameters = list(
+              alpha = list(lb = 0, ub = 1),
+              rhopos = list(lb = -Inf, ub = Inf),
+              rhoneg = list(lb = -Inf, ub = Inf)
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_a_2rho_fu_probs',
+            func_stanvar = ql_a_2rho_fu_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alpha', 'rhospos', 'rhoneg'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alpha', 'rhopos', 'rhoneg'),
+            func_par = 'mu',
+            family =  brms::bernoulli(link='identity'),
+            par_form = list(alpha ~1, rhopos ~1, rhoneg ~1),
+            par_transform =
+              list(alpha ~ inv_logit(alpha), rhopos + rhoneg ~ inv_logit(x) * 20)
           ),
         ql_2a_2rho =
           list(
@@ -716,12 +1011,88 @@ get_all_model_specs <-
             resp_var = 'choice',
             pred_vars = c('reward'),
             block_var = 'blockgrp',
-            func_name = 'ql_2a_2rho_probs',
+            func_name = 'qlddm_2a_qdiffs',
             func_stanvar = ql_2a_2rho_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'rhopos', 'rhoneg'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alphapos', 'alphaneg', 'rhopos', 'rhoneg'),
+            func_par = 'mu',
             family =  brms::bernoulli(link='identity'),
             par_form = list(alphapos ~ 1, alphaneg ~ 1, rhopos ~ 1, rhoneg ~1),
             par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x))
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rhopos + rhoneg ~ inv_logit(x) * 20)
+          ),
+        qlddm_2a =
+          list(
+            class = 'qlddm_2a',
+            description = 'Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors mapped to drift rate of the wiener dsitribution',
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1),
+              alphaneg = list(lb = 0, ub = 1),
+              delta = list(lb=-Inf, ub = Inf),
+              tau = list(lb = 0, ub = Inf),
+              alpha = list(lb = 0, ub = Inf),
+              beta = list(lb = 0, ub = 1)
+            ),
+            resp_var = 'rt',
+            dec_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            fixed_vars = list(
+              rtbound = .1,
+              beta = .5
+              ),
+            func_name = 'qlddm_2a_qdiff_nu',
+            func_stanvar = qlddm_2a_qdiff_nu_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'nu'),
+            func_data = c('choice', 'reward'),
+            func_params = c('alphapos', 'alphaneg', 'nu'),
+            func_par = 'delta',
+            family =  brms::wiener(link='identity', link_bs = 'log', link_ndt = 'identity', link_bias = 'identity'),
+            par_form = list(delta ~ 1, #nu ~ 1
+                            alphapos ~ 1, alphaneg ~ 1,
+                            brms::nlf(bias ~ beta), beta ~ 1,
+                            brms::nlf(bs ~ alpha), alpha ~ 1,
+                            brms::nlf(ndt ~ tau), tau ~ 1
+                            ),
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x), tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound) # bs transformed by link ...
+          ),
+        qlddm_a =
+          list(
+            class = 'qlddm_a',
+            description = 'Rescorla-Wagner delta learning model with learning rateeta mapped to drift rate of the wiener dsitribution',
+            parameters = list(
+              eta = list(lb = 0, ub = 1),
+              delta = list(lb=-Inf, ub = Inf),
+              tau = list(lb = 0, ub = Inf),
+              alpha = list(lb = 0, ub = Inf),
+              beta = list(lb = 0, ub = 1)
+            ),
+            resp_var = 'rt',
+            dec_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            fixed_vars = list(
+              rtbound = .1,
+              beta = .5
+            ),
+            func_name = 'qlddm_a_qdiff_nu',
+            func_stanvar = qlddm_a_qdiff_nu_model_func,
+            func_input = c('block_var', 'choice', 'reward', 'eta', 'nu'),
+            func_data = c('choice', 'reward'),
+            func_params = c('eta', 'nu'),
+            func_par = 'delta',
+            family =  brms::wiener(link='identity', link_bs = 'identity', link_ndt = 'identity', link_bias = 'identity'),
+            par_form = list(delta ~ 1, #nu ~ 1
+                            eta ~ 1,
+                            brms::nlf(bias ~ beta), beta ~ 1,
+                            brms::nlf(bs ~ alpha), alpha ~ 1,
+                            brms::nlf(ndt ~ tau), tau ~ 1
+            ),
+            par_transform =
+              list(eta ~ inv_logit(eta), alpha ~ exp(alpha), tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound) # bs transformed by link ...
           )
 
 
@@ -731,7 +1102,7 @@ get_all_model_specs <-
 
 #' Get model specification for a specific model class
 #'
-#' @param class character givong the name of the model class
+#' @param class character giving the name of the model class
 #'
 #' @returns a model specification for a blms model
 #' @export

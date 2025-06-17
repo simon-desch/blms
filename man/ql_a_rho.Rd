@@ -40,7 +40,7 @@ used in the response formula. Any non-formula objects passed via
 for prediction. Any variables that occur in formulas but cannot be
 found in \code{data} will be considered non-linear parameters.}
 
-\item{formula_only}{return the \code{brmsformula} created from inputs but do not
+\item{formula_only}{Return the \code{brmsformula} created from inputs but do not
 (try to) compile or run the model}
 
 \item{compile}{compile the model and return a \code{brmsfit} object. If \code{run} is

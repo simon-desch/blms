@@ -7,7 +7,7 @@
 get_model_spec(class)
 }
 \arguments{
-\item{class}{character givong the name of the model class}
+\item{class}{character giving the name of the model class}
 }
 \value{
 a model specification for a blms model

@@ -8,7 +8,7 @@
 #' @param data the data containing the response variable and any variables used
 #'        for prediction. Any variables that occur in formulas but cannot be
 #'        found in `data` will be considered non-linear parameters.
-#' @param formula_only return the `brmsformula` created from inputs but do not
+#' @param formula_only Return the `brmsformula` created from inputs but do not
 #'        (try to) compile or run the model
 #' @param compile compile the model and return a `brmsfit` object. If `run` is
 #'        `FALSE` `brm` is called with its `chains` argument set to `0` which
@@ -88,7 +88,7 @@ blms_model <-
     dots <- list(...)
     # msg_var(dots)
     # extract formulas from dots
-    dots_is_formula <- sapply(dots, is.formula)
+    dots_is_formula <- sapply(dots, is_formula)
     dots_formulas <- c()
     if(length(dots_is_formula)) {
       dots_formulas_idx <- which(dots_is_formula)
@@ -120,218 +120,6 @@ blms_model <-
                  )
     )
     # msg_var(mf)
-    if (F) {
-    if (missing(data)) {
-      message('no data provided')
-    }
-    # msg_var(data)
-
-    missing_model_class <- missing(model_class)
-    missing_model_spec <- missing(model_spec)
-    model_class <-
-      as_single_char(model_class)
-    model_spec <-
-      if (missing(model_spec))
-        get_model_spec(model_class)
-    else
-      model_spec
-
-    if (is.null(model_spec)) {
-      if(is.null(model_class)) {
-        stop('no or invalid model class provided')
-      } else if (!model_class%in%names(get_all_model_specs())) {
-        stop('no model_spec found for class "', model_class, '". ',
-             'please provide either a valid model class ',
-             '(one of: ', toString(names(get_all_model_specs())), ') ',
-             'or a valid model specification')
-      }
-    }
-    msg_var(model_class)
-    # msg_var(model_spec)
-    model_pars <- get_parameter_names(model_spec)
-    msg_var(model_pars)
-
-    m <- model_spec
-    # ToDo: implement validation of model_spec
-    if(missing(par_form)) par_form <- m$par_form
-    if(missing(par_transform)) par_transform <- m$par_transform
-
-
-    # msg_var(formula)
-    # msg_var(data)
-    # msg_var(formula_only)
-    # msg_var(compile)
-    # msg_var(run)
-    # msg_var(model_class)
-
-
-
-    validate_not_blockgrp <-
-      function(x) {
-        if (x=='blockgrp') {
-          stop('The variable name \'blockgrp\' is currently reserved in blms')
-        }
-        return(x)
-      }
-
-    resp_formula <- parse_response_formula(formula)
-    resp_var <-
-      sapply(
-        resp_formula$resp_var, validate_var,
-        par = 'response', data = data, valid_value = validate_not_blockgrp,
-      )
-    msg_var(resp_var)
-
-    pred_vars <-
-      sapply(
-        resp_formula$pred_vars, validate_var,
-        par = 'predictor', data = data, valid_value = validate_not_blockgrp,
-      )
-    msg_var(pred_vars)
-
-    block_vars <-
-      sapply(
-        resp_formula$aterms$block$block_vars, validate_var,
-        par = 'block', data = data, null_ok = T
-      )
-    msg_var(block_vars)
-
-
-
-    dots_par_form_list <- list()
-    dots_par_transform_list <- list()
-
-    if(length(dots_formulas)) {
-      # extract nlp formulas from dots
-      dots_forms_in_model_pars <-
-        names(dots_formulas)%in%model_pars
-      dots_forms_in_model_pars_idx <-
-        which(dots_forms_in_model_pars)
-      if(length(dots_forms_in_model_pars_idx)) {
-        dots_par_form_list <-
-          dots_formulas[dots_forms_in_model_pars_idx]
-      }
-
-      # extract transform formulas from dots
-      dots_forms_in_transform_forms <-
-        sapply(dots_formulas, is_transform_formula)
-      dots_forms_in_transform_forms_idx <-
-        which(dots_forms_in_transform_forms)
-      if(length(dots_forms_in_transform_forms_idx)) {
-        dots_par_transform <-
-          dots_formulas[dots_forms_in_transform_forms_idx]
-        dots_par_transform_list <-
-          unlist(lapply(dots_par_transform, split_by_lhs))
-      }
-    }
-    msg_var(dots_par_form_list)
-    msg_var(dots_par_transform_list)
-
-    # default parameter formulas
-    default_par_form_list <-
-      unlist(lapply( m$par_form, split_by_lhs))
-    msg_var(default_par_form_list)
-
-    arg_par_form <-
-      if(is.list(par_form)) par_form else list(par_form)
-    arg_par_form_split <-
-      unlist(lapply(arg_par_form, split_by_lhs))
-    # msg_var(arg_par_form_split)
-    arg_par_form_list <-
-      arg_par_form_split[is.element(names(arg_par_form_split), model_pars)]
-    # msg_var(arg_par_form_list)
-
-    model_par_forms <-
-      default_par_form_list
-    # by default, par_form is the same as default_par_form
-    # anything given via par_form argument
-    # should override formulas from the defaults
-    for (par in names(arg_par_form_list)) {
-      model_par_forms[[par]] <- arg_par_form_list[[par]]
-    }
-    # any further formulas given as argument should also override defaults and
-    # also formulas given by par_form
-    for (par in names(dots_par_form_list)) {
-      model_par_forms[[par]] <- dots_par_form_list[[par]]
-    }
-    msg_var(model_par_forms)
-
-
-    # transforms of model parameters
-    ## default transforms
-    default_par_transform_split <-
-      unlist(lapply(m$par_transform, split_by_lhs))
-    default_par_transform_list <-
-      lapply(default_par_transform_split, validate_transform, replace_x = T)
-    # msg_var(default_par_transform_list)
-
-    ## given transforms
-    arg_par_transform <-
-      if(is.list(par_transform)) par_transform else list(par_transform)
-    # msg_var(arg_par_transform)
-    arg_par_transform_split <-
-      unlist(lapply(arg_par_transform, split_by_lhs))
-    # msg_var(arg_par_transform_split)
-    arg_par_transform_list <-
-      lapply(arg_par_transform_split, validate_transform, replace_x = T)
-    # msg_var(arg_par_transform_list)
-
-    model_par_transforms <-
-      default_par_transform_list
-    # by default, par_transform is the same as default_par_transform
-    # anything given via par_transform argument
-    # should override formulas from the defaults
-    for (par in names(arg_par_transform_list)) {
-      model_par_transforms[[par]] <- arg_par_transform_list[[par]]
-    }
-    # any further formulas given as argument should also override defaults and
-    # also formulas given by par_transform
-    for (par in names(dots_par_transform_list)) {
-      model_par_transforms[[par]] <- dots_par_transform_list[[par]]
-    }
-    msg_var(model_par_transforms)
-
-    parameter_formulas <-
-      parse_par_formulas(
-        model_par_forms, model_par_transforms,
-        model_pars = model_pars, data = data
-      )
-    parameter_formulas <- unlist(parameter_formulas)
-    msg_var(parameter_formulas)
-    # return()
-    data_vars <- c(resp_var, pred_vars, block_vars)
-    data_vars <- c(resp_var, pred_vars, 'blockgrp')
-    model_func_inputs <- c(data_vars, model_pars)
-    model_function <- m$func_name
-    nl_formula <-
-      as.formula(
-        paste0(
-          resp_var, ' ~ ',
-          model_function, '(', paste(model_func_inputs, collapse = ', '), ')'
-        )
-      )
-    msg_var(nl_formula)
-
-    m$nl_formula <- nl_formula
-    m$par_formulas <- parameter_formulas
-    bf_args_list <-
-      c(formula = nl_formula,
-        # lapply(nlp_flist, lf, loop=F),
-        parameter_formulas,
-        list(
-          family = m$model_family,
-          nl = T,
-          loop = F
-        )
-      )
-    model_form <-
-      do.call(brms::brmsformula, bf_args_list)
-    # m$formula <- model_form
-    msg_var(model_form)
-    m <-
-      modifyList(model_form, m)
-    class(m) <- c('blmsformula', class(m))
-    } # if (F)
     model_form <-
       mf$brmsformula
     model_form$formula <- formula_replace_block_call(model_form$formula)
@@ -360,25 +148,17 @@ blms_model <-
     if(formula_only) return(model_form)
 
     # m$dots <- dots
+    # valid_data <- brms_validate_data_2(model_form$brmsformula, data)
+    # data2 <-list(
+    #   blockgrp = as.numeric(interaction(valid_data[, block_vars]))
+    # )
+    # dots$data2 <- c(dots$data2, data2)
+    # data2 <- NULL
 
     if(is.null(data)) {
       stop('cannot compile model without data')
     }
-    block_vars <-
-      if ('block_vars'%in%names(model_form)) {
-        model_form$block_vars
-      } else {NULL}
-    data2 <- NULL
-    if(!is.null(block_vars) && length(block_vars)>0) {
-      data[[model_form$model_spec$block_var]] <-
-        as.numeric(interaction(data[, block_vars]))
-      # valid_data <- brms_validate_data_2(model_form$brmsformula, data)
-      # data2 <-list(
-      #   blockgrp = as.numeric(interaction(valid_data[, block_vars]))
-      # )
-    }
-    # dots$data2 <- c(dots$data2, data2)
-
+    data <- validate_data(data, model_form)
 
     # blm_frm <-
     #   do.call(brms::blmformula,
@@ -427,6 +207,33 @@ blms_model <-
     return(brm_model)
   }
 
+
+#' standata implementation for blmsfit
+#'
+#' @importFrom brms standata
+#' @method standata blmsfit
+#' @export
+standata.blmsfit <-
+  function (object, newdata = NULL, re_formula = NULL, newdata2 = NULL,
+            new_objects = NULL, incl_autocor = TRUE, ...)
+  {
+
+    # message('standata.blmsfit')
+    # NextMethod()
+    # if(F){
+    # message('missing(newdata): ', missing(newdata))
+    # message('is.null(newdata): ', is.null(newdata))
+    if(!missing(newdata) && !is.null(newdata)) {
+      # print(head(newdata))
+      # message('names(newdata):', toString(names(newdata)))
+      newdata <- validate_data(newdata, object$blms_formula)
+      NextMethod('standata', newdata = newdata)
+    } else {
+      NextMethod()
+    }
+    # }
+  }
+
 #' Print method for class blmsfit
 #'
 #' @param fit An object of class `blmsfit`
@@ -442,16 +249,22 @@ print.blmsfit <-
     model_desc <- model_form$model_spec$description
     model_class <- model_form$model_spec$class
     model_func <- model_form$model_spec$func_name
+    model_fixed <- model_form$model_spec$fixed_vars
     cat(paste0(model_desc, '\n\n'))
 
     cat(paste0('blms model', '\n'))
     cat(paste0('Model class: ', model_class, '\n'))
     cat(paste0('Model function: ', model_func, '\n'))
     cat(paste0('Model parameters: ', toString(model_pars), '\n'))
+    cat(paste0('fixed :\n'))
+    nil <- mapply(\(x, nm){cat(nm, ' = ', x, '\n')},
+                  model_fixed, names(model_fixed))
+
     cat(paste0('\n'))
     parameter_summaries <-
       list()
     for (par in model_pars) {
+      if(!par%in%names(x$formula$pforms)) next
       parameter_summaries[[par]] <- summarize_model_par(x, par, ...)
     }
     names(parameter_summaries) <- NULL
@@ -460,6 +273,7 @@ print.blmsfit <-
     est_col <- which(names(parameter_summaries_df)%in%'Estimate')
     parameter_summaries_df <-
       parameter_summaries_df[, est_col:ncol(parameter_summaries_df)]
+    cat(paste0('estimated :\n'))
     print(round(parameter_summaries_df, digits))
     cat('\n\n\n')
     NextMethod()

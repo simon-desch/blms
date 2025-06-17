@@ -9,7 +9,7 @@ get_used_nlpars(formula, nlpar)
 \arguments{
 \item{formula}{\code{brmsformula}}
 
-\item{nlpar}{\code{nlpar} for which used nlpars shuld be return}
+\item{nlpar}{\code{nlpar} for which used nlpars should be return}
 }
 \value{
 character vector
