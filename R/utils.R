@@ -16,6 +16,16 @@ msg_var <-
     message(substitute(var), ': ')
     str(var, give.attr = show_attr)
   }
+cat_var <-
+  function(var, show_attr = F) {
+    # message(substitute(var), ': ', toString(deparse(var)))
+    if(is.character(var)||is.formula(var)||is.numeric(var)||is.logical(var)) {
+      cat(substitute(var), ': ', toString(deparse1(var)))
+      return()
+    }
+    cat(substitute(var), ': ')
+    str(var, give.attr = show_attr)
+  }
 
 
 as_single_char <-

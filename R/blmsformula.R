@@ -33,9 +33,10 @@ parse_blms_model_inputs <-
            par_form = NULL,
            par_transform = NULL,
            model_func_has_blockgrp = F) {
-    message('=======================')
-    message('parse_blms_model_inputs')
-    message('=======================')
+    # message('=======================')
+    # message('parse_blms_model_inputs')
+    # message('=======================')
+    # cat('=======================')
     # return(NULL)
     if(is.null(model_class)&&is.null(model_spec)) {
       warning('No model specification provided, ',
@@ -47,15 +48,15 @@ parse_blms_model_inputs <-
     if (missing(formula)) {
       stop('formula must be specified')
     } else {
-      msg_var(formula)
+      # cat_var(formula)
     }
     dots <- list(...)
     # msg_var(dots)
 
     if (missing(data)) {
-      message('no data provided')
+      # cat('no data provided ...')
     }
-    # msg_var(data)
+    # cat_var(data)
 
     missing_model_class <- missing(model_class)
     missing_model_spec <- missing(model_spec)
@@ -71,7 +72,7 @@ parse_blms_model_inputs <-
              '(one of: ', toString(names(get_all_model_specs())), ') ',
              'or a valid model specification.')
       } else if (!model_class%in%names(get_all_model_specs())) {
-        stop('no model_spec found for class "', model_class, '". ',
+        stop('No model_spec found for class "', model_class, '". ',
              'please provide either a valid model class ',
              '(one of: ', toString(names(get_all_model_specs())), ') ',
              'or a valid model specification')
@@ -88,9 +89,9 @@ parse_blms_model_inputs <-
       }
       model_class = model_spec$class
     }
-    msg_var(model_class)
+    # cat_var(model_class)
     model_pars <- get_parameter_names(model_spec)
-    msg_var(model_pars)
+    # cat_var(model_pars)
 
     m <- model_spec
     # ToDo: implement validation of model_spec
@@ -134,14 +135,14 @@ parse_blms_model_inputs <-
         par = 'response', data = data,
         valid_value = validate_not_blockgrp
       )
-    msg_var(resp_var)
+    # msg_var(resp_var)
 
     block_vars <-
       sapply(
         resp_formula$aterms$block$block_vars, validate_var,
         par = 'block', data = data, null_ok = T
       )
-    msg_var(block_vars)
+    # msg_var(block_vars)
 
     dec_var = NULL
     if ('dec'%in%names(resp_formula$aterms)) {
@@ -165,7 +166,7 @@ parse_blms_model_inputs <-
         resp_formula$aterms$block$trial_var, validate_var,
         par = 'trial', data = data, null_ok = T
       )
-    if (length(trial_var)) msg_var(trial_var)
+    # if (length(trial_var)) msg_var(trial_var)
 
     cond_var <-
       sapply(
@@ -239,13 +240,13 @@ parse_blms_model_inputs <-
     # default parameter formulas
     # msg_var(m$par_form)
     default_par_form_list <-
-      unlist(lapply( m$par_form, split_by_lhs))
+      unlist(lapply( unname(m$par_form), split_by_lhs))
     # msg_var(default_par_form_list)
 
     arg_par_form <-
       if(is.list(par_form)) par_form else list(par_form)
     arg_par_form_split <-
-      unlist(lapply(arg_par_form, split_by_lhs))
+      unlist(lapply(unname(arg_par_form), split_by_lhs))
     # msg_var(arg_par_form_split)
     arg_par_form_list <-
       arg_par_form_split[is.element(names(arg_par_form_split), model_pars)]
@@ -269,8 +270,9 @@ parse_blms_model_inputs <-
 
     # transforms of model parameters
     ## default transforms
+    # msg_var(m$par_transform)
     default_par_transform_split <-
-      unlist(lapply(m$par_transform, split_by_lhs))
+      unlist(lapply(unname(m$par_transform), split_by_lhs))
     # msg_var(default_par_transform_split)
     default_par_transform_list <-
       lapply(default_par_transform_split, validate_transform, replace_x = T)
@@ -281,7 +283,7 @@ parse_blms_model_inputs <-
       if(is.list(par_transform)) par_transform else list(par_transform)
     # msg_var(arg_par_transform)
     arg_par_transform_split <-
-      unlist(lapply(arg_par_transform, split_by_lhs))
+      unlist(lapply(unname(arg_par_transform), split_by_lhs))
     # msg_var(arg_par_transform_split)
     arg_par_transform_list <-
       lapply(arg_par_transform_split, validate_transform, replace_x = T)
@@ -331,7 +333,7 @@ parse_blms_model_inputs <-
     # )
 
     if ('fixed_vars'%in%names(model_spec)) {
-      message('fixed_vars: ', toString(names(model_spec$fixed_vars)))
+      # message('fixed_vars: ', toString(names(model_spec$fixed_vars)))
       for (fixed_var in names(model_spec$fixed_vars)) {
         if (fixed_var%in%names(parameter_formulas)) {
           param_form_vars <- lapply(parameter_formulas, \(x) all.vars(rhs(x)))
@@ -341,8 +343,8 @@ parse_blms_model_inputs <-
             distr_par_form <- parameter_formulas[[fixed_form_par_pos]]
             distr_par <- all.vars(lhs(distr_par_form))
             fixed_par <- all.vars(rhs(distr_par_form))
-            message('Setting distributional parameter ', distr_par,
-                    ' to ', model_spec$fixed_vars[[fixed_var]])
+            # message('Setting distributional parameter ', distr_par,
+                    # ' to ', model_spec$fixed_vars[[fixed_var]])
             parameter_formulas[[distr_par]] <-
               model_spec$fixed_vars[[fixed_var]]
             parameter_formulas[fixed_par] <- NULL
@@ -389,6 +391,16 @@ parse_blms_model_inputs <-
     # msg_var(parameter_formulas)
 
 
+    # print(nlist(block_vars, trial_var, cond_var))
+    unused_form <- NULL
+    if(length(c(block_vars, trial_var, cond_var))) {
+      unused <-
+        as.formula(
+          paste('~',
+                paste(c(block_vars, trial_var, cond_var), collapse = ' + ')
+                )
+          )
+    }
     bf_args_list <-
       c(formula = response_formula,
         parameter_formulas,
@@ -396,7 +408,7 @@ parse_blms_model_inputs <-
           family = m$family,
           nl = T,
           loop = F,
-          unused =  as.formula(paste('~', paste(c(block_vars, trial_var, cond_var), collapse = ' + ')))
+          unused = unused_form
         )
       )
     # msg_var(bf_args_list)
@@ -404,6 +416,7 @@ parse_blms_model_inputs <-
       brms::do_call(brms::brmsformula, bf_args_list)
 
     # msg_var(model_form)
+    # msg_var(model_spec)
     model_form_info <- parse_brms_blms(model_form, model_spec)
     model_form <- model_form_info$formula
     pred_vars <- model_form_info$pred_vars
@@ -422,7 +435,7 @@ parse_blms_model_inputs <-
       brmsformula = model_form
     )
     class(mf) <- c('blmsmodelinfo', class(mf))
-    message('=======================')
+    # message('=======================')
     return(mf)
   }
 
@@ -445,6 +458,7 @@ blmsformula <-
            model_func_has_blockgrp = F) {
 
     dots <- list(...)
+    # msg_var(dots)
     dots_is_formula <- sapply(dots, is_formula)
 
     dots_formulas <- c()
@@ -452,7 +466,7 @@ blmsformula <-
       dots_formulas_idx <- which(dots_is_formula)
       if(length(dots_formulas_idx)){
         dots_formulas <- dots[dots_formulas_idx]
-        dots_formulas <- unlist(lapply(dots_formulas, split_by_lhs))
+        dots_formulas <- unlist(lapply(unname(dots_formulas), split_by_lhs))
         names(dots_formulas) <- sapply(dots_formulas, \(x) deparse(x[[2]]))
         dots <- dots[-dots_formulas_idx]
       }

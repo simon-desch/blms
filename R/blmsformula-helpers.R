@@ -168,20 +168,29 @@ is.twosided <-
 #' Split a formula into multiple formulas based on variables defined in the
 #' left-hand side of the formula
 #'
-#' @param form
+#' @param form a formula, possibly containing multiple variables (typically
+#'        combined by \code{+}) on its left-hand side
 #'
-#' @returns \code{list()} containing \code{formula} objects created
+#' @returns A \code{list()} containing \code{formula} objects created by
+#'          splitting the input formula into multiple formulas if multiple
+#'          variables are listed on it left-hand side
+#' @export
+#'
 #' @details
 #' Variables on the left-hand side of the formula are extracted using
 #' \code{all.vars}
 #'
+#' @examples split_by_lhs(a + b ~ c)
+#'
 split_by_lhs <-
   function(form) {
+    # print(form)
     form_in <- form
     form <- get_formula(form)
     is_transform <- is_transform_formula(form)
     lh_vars <- all.vars(lhs(form))
     names(lh_vars) <- lh_vars
+    # msg_var(lh_vars)
     rhs_str <- rhs_dp(form)
     out_forms <-
     lapply(
@@ -194,8 +203,31 @@ split_by_lhs <-
         return(set_formula(form_in, outform))
       }
       )
-    # names(out_forms) <- NULL
+    # if(is.null(names(out_forms))) names(out_forms) <- lh_vars
     return(out_forms)
+  }
+
+#' Split each formula in a list into multiple formulas based on variables
+#' defined in the left-hand side of the formula
+#'
+#' @param flist A \code{list()} containing formulas, each possibly containing
+#'        multiple variables (typically combined by \code{+}) on its
+#'        left-hand side
+#'
+#' @returns A \code{list()} containing \code{formula} objects created by
+#'          splitting the input formulas into multiple formulas if multiple
+#'          variables are listed on their left-hand side
+#' @export
+#'
+#' @details
+#' Variables on the left-hand side of the formula are extracted using
+#' \code{all.vars}
+#'
+#' @examples split_flist_by_lhs(list(a + b ~ c, d ~ e))
+#'
+split_flist_by_lhs <-
+  function(flist) {
+    unlist(lapply(unname(flist), split_by_lhs))
   }
 
 #' Set specific environment for an object
@@ -606,7 +638,7 @@ parse_response_formula <-
     # msg_var(bterm_parsed)
 
     f <-
-      brms:::nlist(
+      nlist(
         formula = form, resp_var, aterms, pred_vars, bterm = bterm_parsed
       )
     return(f)
@@ -867,9 +899,9 @@ pred_vars_model_func_call <-
   }
 
 substitute_model_func <-
-  function(in_form, model_spec, dec_var) {
+  function(in_form, model_spec, resp_var, dec_var) {
 
-    resp_var <- all.vars(lhs(in_form))[1]
+    # resp_var <- all.vars(lhs(in_form))[1]
 
     pred_vars <- NULL
     n_pred_vars <- length(model_spec$pred_vars)
@@ -879,35 +911,43 @@ substitute_model_func <-
     if (length(rhs_call_model_func)) {
 
       if (length(rhs_call_model_func)==1) {
-        pred_vars <- pred_vars_model_func_call(rhs_call_model_func)
-          if(!is.null(pred_vars)) {
-
-          message('Parameter formula for parameter already contains model func.')
+        pred_vars <- pred_vars_model_func_call(rhs_call_model_func, model_spec)
+        if(!is.null(pred_vars)) {
+          message('Parameter formula for parameter already contains model ',
+                  'function.')
           out_form <- in_form
           attributes(out_form) <- attributes(in_form)
           attr(out_form, 'loop') <- F
           attr(out_form, 'nl') <- T
           return(list(formula = out_form, pred_vars = pred_vars))
-          } else {
-            stop('Model func has wrong number of input arguments.')
-          }
+        } else {
+          stop('Model func has wrong number of input arguments.')
+        }
       } else {
         stop('Cannot call model func twice.')
       }
     } else {
-
       pred_vars <- all.vars(rhs(in_form))
+      # msg_var(pred_vars)
       if(length(pred_vars)!=n_pred_vars) {
         stop('Number of arguments for model func \'', model_spec$func_name,
-             '()\' specified in formula \n', in_form, '\ndoes not match ',
+             '()\' (', length(pred_vars), ') specified in formula \n',
+             toString(in_form), '\ndoes not match ',
              'the number of expected arguments defined in model_spec (',
              'n=', n_pred_vars, ': ', toString(model_spec$pred_vars), ').')
       }
+      use_blm <- 'use_blm'%in%names(model_spec) && model_spec$use_blm
+      # msg_var(use_blm)
+      block_var <- NULL
+      if(!use_blm && 'use_blm'%in%names(model_spec)) {
+        block_var <- model_spec$block_var
+      }
       data_vars <- c(
-        model_spec$block_var,
+        block_var,
         ifelse(is.null(dec_var), resp_var, dec_var),
         pred_vars
       )
+      # msg_var(data_vars)
       model_pars <- model_spec$func_params
       model_func_inputs <- c(data_vars, model_pars)
 
@@ -941,12 +981,13 @@ parse_brms_blms <-
     }
     if (model_spec$func_par == 'mu') {
       in_form <- brmsformula$formula
-      form_info <- substitute_model_func(in_form, model_spec, dec_var)
+      form_info <-
+        substitute_model_func(in_form, model_spec, resp_var, dec_var)
       out_form <- form_info$formula
       pred_vars <- form_info$pred_vars
       brmsformula$formula <- out_form
     } else {
-      func_par_available = model_spec$func_par %in% names(brmsformula$pforms)
+      func_par_available <- model_spec$func_par %in% names(brmsformula$pforms)
       if(!func_par_available) {
         stop('Parameter formula for parameter \'', model_spec$func_par, '\', ',
              'supposed to contain the model function, not found.')
@@ -960,6 +1001,8 @@ parse_brms_blms <-
         if(is.null(fform)) break
         fform_rhs_vars <- all.vars(rhs(fform))
         # msg_var(fform_rhs_vars)
+        #ToDo:
+        # double check, may be better to not allow this
         if (paste0(func_par, 'raw')%in%fform_rhs_vars) {
           func_par <- paste0(func_par, 'raw')
         } else {
@@ -971,7 +1014,8 @@ parse_brms_blms <-
              'supposed to contain the model function, not found.')
       }
       in_form <- fform
-      form_info <- substitute_model_func(in_form, model_spec, dec_var)
+      form_info <-
+        substitute_model_func(in_form, model_spec, resp_var, dec_var)
       out_form <- form_info$formula
       pred_vars <- form_info$pred_vars
       brmsformula$pforms[[func_par]] <- out_form

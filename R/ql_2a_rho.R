@@ -1,29 +1,18 @@
-
-
-#' Rescorla-Wagner delta learning model with separate learning rates for
-#' positive and negative prediction errors and reward sensitivity parameter
+#' `r get_doc_title_md(get_model_spec('ql_2a_rho'))`
 #'
-#' @param formula response formula specifying the response and its prediction.
-#'        For models of class \code{'ql_2a_rho'} this formula needs to define the
-#'        response on the left-hand side, a variable coded as 1 or 2, and the
-#'        feedback (aka outcome) on the right-hand side, coded as 1 or -1. In
-#'        addition, you can define the block structure on the left-hand side
-#'        of the formula. That is, a formula like
-#'        \code{choice|block(id) ~ reward} would update (expected) values
-#'        based on each trials choice and reward starting from the first row
-#'        in \code{data} until \code{id[n] != id[n-1]}.
-#'        In that case, updating of Q values starts again from starting values
-#'        \code{c(0.0, 0.0)}.
-#' @param ... You can pass further formulas to define predictions of parameters
-#'        used in the response formula. Any non-formula objects passed via
-#'        `...` are passed on to other functions (i.e., `brmsformula` and
-#'        `brm`)
-
+#' @description `r get_doc_description_md(get_model_spec('ql_2a_rho'))`
+#'
+#' @param formula `r get_doc_formula_arg_md(get_model_spec('ql_2a_rho'))`
 #' @inheritParams blms_model
 #'
-#' @returns If `formula_only` is `TRUE` then the return value is an object of
-#'        class `blmsformula` (inheriting from class `brmsformula`), else the
-#'        return value is of class `blmsfit` (inheriting from class `brmsfit`)
+#' @returns If \code{formula_only} is \code{TRUE} then the return value is an
+#'          object of class \code{blmsformula} (inheriting from class
+#'          \code{brms::brmsformula}), else the return value is of class
+#'          \code{blmsfit} (inheriting from class \code{brms::brmsfit})
+#'
+#' @details
+#' `r get_doc_details_md(get_model_spec('ql_2a_rho'))`
+#'
 #'
 #'
 #' @export

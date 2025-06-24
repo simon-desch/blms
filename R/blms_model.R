@@ -52,9 +52,10 @@
 #'        many transformation formulas as there are variables on the left-hand
 #'        side and replace 'x' on the right-hand side.
 #'
-#' @returns If `formula_only` is `TRUE` then the return value is an object of
-#'        class `blmsformula` (inheriting from class `brmsformula`), else the
-#'        return value is of class `blmsfit` (inheriting from class `brmsfit`)
+#' @returns If \code{formula_only} is \code{TRUE} then the return value is an
+#'        object of class \code{blmsformula} (inheriting from class
+#'        \code{brms::brmsformula}), else the return value is of class
+#'        \code{blmsfit} (inheriting from class \code{brms::brmsfit})
 #' @export
 #' @importFrom brms brmsformula brm
 #'
@@ -103,30 +104,6 @@ blms_model <-
     # msg_var(dots_formulas)
     # msg_var(dots)
 
-
-
-
-    if(F) {
-    mf <- do.call(parse_blms_model_inputs,
-                 c(list(formula = formula),
-                   dots_formulas,
-                   list(model_class = model_class,
-                        model_spec = model_spec,
-                        par_form = par_form,
-                        par_transform = par_transform,
-                        model_func_has_blockgrp = T,
-                        data = data
-                        )
-                 )
-    )
-    # msg_var(mf)
-    model_form <-
-      mf$brmsformula
-    model_form$formula <- formula_replace_block_call(model_form$formula)
-    model_form <-
-      modifyList(model_form, mf)
-    class(model_form) <- c('blmsformula', class(model_form))
-    }
     model_form <-
       do.call(blmsformula,
               c(list(formula = formula),

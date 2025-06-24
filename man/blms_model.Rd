@@ -80,9 +80,10 @@ many transformation formulas as there are variables on the left-hand
 side and replace 'x' on the right-hand side.}
 }
 \value{
-If \code{formula_only} is \code{TRUE} then the return value is an object of
-class \code{blmsformula} (inheriting from class \code{brmsformula}), else the
-return value is of class \code{blmsfit} (inheriting from class \code{brmsfit})
+If \code{formula_only} is \code{TRUE} then the return value is an
+object of class \code{blmsformula} (inheriting from class
+\code{brms::brmsformula}), else the return value is of class
+\code{blmsfit} (inheriting from class \code{brms::brmsfit})
 }
 \description{
 blms_model

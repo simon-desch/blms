@@ -1,761 +1,2735 @@
-## model funcs -------------------------------------------------------------
+
+#' Model specification for \code{blms_model}
+#'
+#' @param class \code{character}. The name of the model class.
+#' @param parameters Named \code{list()} containing \code{list}s that define
+#'        lower, upper bound, and optinally other specification for single
+#'        parameters. The names of this list are interpreted as
+#' @param resp_var \code{character}. Name for the response variable.
+#' @param pred_vars \code{character}. Names of one or more response variables.
+#' @param func_name \code{character}. Name of the Stan function that defines
+#'        the model.
+#' @param func_stanvar \code{stanvar} created using \code{brms::stanvar()} with
+#'          \code{block = 'functions'} containing at least the model function.
+#' @param description \code{character}, optional. Description of the model.
+#' @param details \code{character}, optional. Details for the model.
+#' @param note \code{character}, optional. Notes with additional information
+#'        about the model.
+#' @param example \code{character}, optional. Example code for running the
+#'        model.
+#' @param block_var \code{character}, optional. Name for the variable that
+#'        defines the blocks in the data. This will be created by the
+#'        \code{block()} call. Defaults to \code{'bockgrp'}.
+#'        See \code{\link{blms_model}} for details.
+#' @param dec_var \code{character}, optional. Name for the \code{dec} variable.
+#'        Only used for models that use \code{\link[brms]{wiener()}} as their
+#'        family.
+#' @param fixed_vars Named \code{list()}, optional. List of variables or
+#'        parameters used in model formulas whose values should be fixed.
+#' @param func_data \code{character} vector, optional. List of data variables
+#'        (including \code{block_var}) that will be passed to the model
+#'        function defined in \code{func_stanvar}. Defaults to
+#'        \code{c(block_var, resp_var, pred_vars)}.
+#' @param func_params \code{character} vector, optional. List of parameters
+#'        that will be passed to the model function defined in
+#'        \code{func_stanvar}. Defaults to \code{names(parameters)}.
+#' @param func_input \code{character} vector, optional. List of variables that
+#'        will be passed to the model function defined in \code{func_stanvar}.
+#' @param func_par \code{character}, optional. Name of the parameter for which
+#'        \code{pred_vars} are specified on the right-hand side of its
+#'        formula. The right-hand side of this formula will be replaced by a
+#'        call to the model function defined in \code{func_stanvar}. Defaults
+#'        to \code{mu}
+#' @param family \code{family}, optional. Family used to predict
+#'        \code{resp_var}. Defaults to \code{bernoulli(link = 'identity')},
+#'        meaning that the expected prediction formula (usually the output of
+#'        the model function defined in \code{func_stanvar}) provides the
+#'        probability for the upper bound (\code{TRUE} if \code{resp_var}
+#'        provided in the input data is \code{logical},
+#'        \code{levels(factor(resp_var)))[2]} if \code{resp_var} provided in
+#'        the input data is \code{facor}, \code{character}, or \code{numeric}).
+#' @param par_form \code{list()}, optional. List of formulas for the
+#'        prediction of parameters given by \code{parameters}. Defaults to
+#'        \code{parameter ~ 1} for each parameter in \code{names(parameters)}.
+#'        Multiple parameters on the left-hand side of the formula combined by
+#'        \code{+} are allowed. The respective formula on the right-hand side
+#'        will be used for each parameter on the left-hand side. If
+#'        \code{par_form} is given as an argument to \code{blms_model},
+#'        the formulas will overwrite those specified by \code{par_form}
+#'        defined in the \code{model_spec}. Formulas passed via \code{...}
+#'        to \code{blms_model} will overwrite formulas passed via its
+#'        \code{par_form} argument or defined by its \code{model_spec}.
+#' @param par_transform \code{list()}, optional. List of transformation
+#'        formulas for parameters in \code{names(parameters)}. Transformation
+#'        formulas given by \code{par_transform} can take the form of e.g.
+#'        \code{parameter ~ inv_logit(parameter) * 5}. In this case, the
+#'        parameter name on the right-hand side will be appended by
+#'        \code{'raw'} (e.g. \code{alpha ~ inv_logit(alpha)} will become
+#'        \code{alpha ~ inv_logit(alpharaw)}) and the corresponding formula
+#'        for the prediction of the parameter will take the the new name
+#'        (e.g. \code{alpharaw}) on their left-hand side (e.g.
+#'        \code{alpha ~ 1} will become \code{alpharaw ~ 1}). Multiple
+#'        parameters combined by \code{+} can be specified on the left-hand
+#'        side of the formula. In this case, the variable \code{x} on the
+#'        right-hand side of the formula will be interpreted as the
+#'        parameter and replaced for each parameter on the left-hand side as
+#'        described above (e.g. \code{alpha + beta ~ inv_logit(x)} will
+#'        create two formulas \code{alpha ~ inv_logit(alpharaw)} and
+#'        \code{beta ~ inv_logit(betaraw)} and the formulas for \code{alpha}
+#'        and \code{beta} will have their left-hand side replaced by
+#'        \code{alpharaw} and \code{betaraw}, respectively). If
+#'        \code{par_transform} is given as an argument to \code{blms_model},
+#'        the formulas will overwrite those specified by \code{par_transform}
+#'        defined in the \code{model_spec}. In addition, transformation
+#'        formulas can be given as formulas passed via the \code{...}
+#'        arguments to \code{blms_model}, using a \code{transform()} call
+#'        on their left-hand side. Again, multiple parameters combined by
+#'        \code{+} can be specified on the left-hand side
+#'        (inside the \code{transform()} call). Formulas passed via \code{...}
+#'        to \code{blms_model} will overwrite formulas passed via its
+#'        \code{par_transform} argument or defined by its \code{model_spec}.
+#' @param use_blm \code{logical}, optional. Should the block structure be
+#'        handled by \code{\link{blm_model}} internally. In this case,
+#'        \code{func_input} will not contain \code{block_var}, so that the
+#'        function specified in \code{func_stanvar} should not take
+#'        \code{block_var} as its first argument. Currently not used.
+#' @param ... Further arguments added to
+#'
+#' @returns Object of class \code{model_spec} to be used with \code{blms_model}.
+#' @export
+#'
+#' @examples
+#' func_wsls <- brms::stanvar(block = 'functions', scode = '
+#'  vector win_stay_lose_switch(
+#'    vector blockgrp, vector action, vector outcome, // func_data
+#'    vector beta) { // func_params
+#'    int N = size(action);
+#'    vector out[N];
+#'    out[1] = 0.5;
+#'    for (n in 2:N) {
+#'      if (blockgrp[n]!=blockgrp[n-1]) {
+#'        out[n] = 0.5;
+#'        continue;
+#'      }
+#'      int stay = action[n] == action[n-1] ? 1 : -1;
+#'      int win = outcome > 0 ? 1 : -1;
+#'      int resp_bound = action[n] == max(action) ? 1 : -1;
+#'      real beta_x = stay * outcome * resp_bound * beta[n];
+#'      out[n] = inv_logit(beta_x);
+#'     }
+#'     return(out)
+#'  }
+#' '
+#' )
+#' mspec <- new_model_spec(class = 'wsls',
+#'                         description = 'Win-Stay-Lose-Switch Model',
+#'                         parameters = list(beta=list(lb = -Inf, ub = Inf)),
+#'                         resp_var = 'choice',
+#'                         pred_vars = c('outcome'),
+#'                         func_name = 'win_stay_lose_switch',
+#'                         func_stanvar = func_wsls
+#'                         )
+#'
+#'
+#'
+new_model_spec <-
+  function(
+    class,
+    parameters,
+    resp_var,
+    pred_vars,
+    func_name,
+    func_stanvar,
+    description = '',
+    details = '',
+    note = '',
+    example = '',
+    block_var = 'blockgrp',
+    dec_var = NULL,
+    fixed_vars = list(),
+    func_data = c(resp_var, pred_vars),
+    func_params = c(names(parameters)),
+    func_input = c(block_var, resp_var, pred_vars, names(parameters)),
+    func_par = 'mu',
+    family =  brms::bernoulli(link = 'identity'),
+    par_form = list(),
+    par_transform = list(),
+    use_blm = F,
+    ...
+  ) {
+    if(missing(class)) {
+      stop('Argument \'class\' needs to be provided.')
+    }
+    if(missing(parameters)) {
+      stop('Argument \'parameters\' needs to be provided.')
+    }
+    if(missing(resp_var)) {
+      stop('Argument \'resp_var\' needs to be provided.')
+    }
+    if(missing(pred_vars)) {
+      stop('Argument \'pred_vars\' needs to be provided.')
+    }
+    if(missing(func_name)) {
+      stop('Argument \'func_name\' needs to be provided.')
+    }
+    if(missing(func_stanvar)) {
+      stop('Argument \'func_stanvar\' needs to be provided.')
+    }
 
 
-### hmm_rp_model_func -------------------------------------------------------
-
-
-hmm_rp_model_func <-
-  brms::stanvar(
-    scode = '
-    vector hmm_rp_probs(vector block_grp, vector choice, vector reward, vector gamma_vec, vector c_vec, vector d_vec) {
-
-
-    int nT = size(choice);
-
-    vector[nT] gamma;
-    vector[nT] c;
-    vector[nT] d;
-    vector[nT] Ps_out;
-
-    vector[2] Ps;  // prob of the states, 1 - left, 2 - right
-    real P_O_S1;   // p(O|S1) - O = {A,R} given left
-    real P_O_S2;   // p(O|S2) - O = {A,R} given right
-
-    gamma = gamma_vec;
-    c = c_vec;
-    d = d_vec;
-
-    vector[2] Ps_init; // initial prob/belief of the two states
-    Ps_init = rep_vector(0.5, 2);
-
-    for (n in 1:nT)  {
-
-      // State update using the transition matrix
-      // from S[t-1] to S[t], BEFORE observing the outcome
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Ps = Ps_init;
-      } else {
-         Ps[1] = Ps[1] * (1-gamma[n]) + Ps[2] * gamma[n];
-         Ps[2] = 1 - Ps[1];
-      }
-
-      // action selection based on the State probability
-      Ps_out[n] = Ps[2]; // if choice is coded as [1, 2], then level two (2) is used as upper bound in bernoulli, so we need p(S2)
-      // if (only_prior==1) {
-      //   choice[s,cc,t] ~ bernoulli(Ps);
-      // }
-
-      // renew of emission prob: p(O|S1) p(O|S2); O is a pair between A(ction) and R(eward)
-      // --> the probability of actually observing this outcome
-      if (reward[n] == 1) {
-        P_O_S1 = 0.5 * ( (choice[n] == 1)?c[n]:(1-c[n]) );
-        P_O_S2 = 0.5 * ( (choice[n] == 2)?c[n]:(1-c[n]) );
-      } else if (reward[n] == -1) {
-        P_O_S1 = 0.5 * ( (choice[n] == 1)?(1-d[n]):d[n] );
-        P_O_S2 = 0.5 * ( (choice[n] == 2)?(1-d[n]):d[n] );
-      }
-
-      // State belief update using Bayesian rule, after observing the outcome
-      if (( P_O_S1 * Ps[1] + P_O_S2 * Ps[2]) != 0) {
-        Ps[1] = (P_O_S1 * Ps[1]) / ( P_O_S1 * Ps[1] + P_O_S2 * Ps[2]);
-        Ps[2] = 1 - Ps[1];
-      }
-    } // trial loop
-
-    return Ps_out;
+    # message('original')
+    # print(par_form)
+    if(length(par_form)!=0) {
+      par_form <- split_flist_by_lhs(par_form)
+    }
+    # message('spliiited')
+    # print(par_form)
+    default_par_forms <-
+      sapply(names(parameters), \(x) as.formula(paste0(x, ' ~ 1')),
+             simplify = FALSE, USE.NAMES = TRUE)
+    # message('default')
+    # print(default_par_forms)
+    undefined_par_forms <- setdiff(names(parameters), names(par_form))
+    # message('subsetted')
+    # print(default_par_forms[undefined_par_forms])
+    par_form <- modifyList(par_form, default_par_forms[undefined_par_forms])
+    # message('modified')
+    # print(par_form)
+    out <- nlist(
+      class,
+      parameters,
+      resp_var,
+      pred_vars,
+      func_name,
+      func_stanvar,
+      description,
+      details,
+      note,
+      example,
+      block_var,
+      dec_var,
+      fixed_vars,
+      func_input,
+      func_data,
+      func_params,
+      use_blm,
+      func_par,
+      family,
+      par_form,
+      par_transform
+    )
+    dots <- list(...)
+    dots <- dots[names(dots)!='']
+    if(length(dots)) out <- c(out, dots)
+    structure(out, class = 'model_spec')
   }
-    ',
-    block = 'functions'
-  )
 
-
-### hmm_rp_model_func2 ------------------------------------------------------
-
-
-hmm_rp_model_func2 <-
-  brms::stanvar(
-    scode = '
-  vector hmm_rp_probs(vector choice, vector reward, vector gamma, vector c, vector d) {
-    int nT = size(choice);
-
-    real P_O_S1;   // p(O|S1) - O = {A,R} given left
-    real P_O_S2;   // p(O|S2) - O = {A,R} given right
-
-    vector[2] Ps;  // prob of the states, 1 - left, 2 - right
-    vector[2] Ps_init; // initial prob/belief of the two states
-    vector[nT] Ps_out;
-    Ps_init = rep_vector(0.5, 2);
-    Ps = Ps_init;
-
-    for (n in 1:nT)  {
-
-      // State update using the transition matrix
-      // from S[t-1] to S[t], BEFORE observing the outcome
-      if (n > 1) {
-         Ps[1] = Ps[1] * (1-gamma[n]) + Ps[2] * gamma[n];
-         Ps[2] = 1 - Ps[1];
+#' print method for \code{model_spec}
+#'
+#' @param ms A \code{model_spec} object.
+#'
+#' @method print model_spec
+#' @export
+print.model_spec <-
+  function(ms) {
+    cat('[', ms$class, ']\n')
+    cat(paste(rep('=', nchar(ms$class)+4), collapse = ''), '\n')
+    cat(ms$description, '\n\n')
+    cat('Variables:\n')
+    cat('response: ', ms$resp_var, '\n')
+    cat(paste0('predictor', ifelse(length(ms$pred_vars)>1L, 's', ''), ': ',
+        toString(ms$pred_vars), '\n'))
+    cat('\n')
+    cat('Parameters:\n')
+    for (par in names(ms$parameters)) {
+      par_def <- ms$parameters[[par]]
+      cat(paste0(par, ' [', par_def$lb, ', ', par_def$ub, ']'))
+      if ('desc'%in%names(par_def)) {
+        cat(': ', par_def$desc)
       }
+      cat('\n')
+    }
+    cat('\n')
 
-      // action selection based on the State probability
-      Ps_out[n] = Ps[2]; // if choice is coded as [1, 2], then level two (2) is used as upper bound in bernoulli, so we need p(S2)
+    # suppressMessages(
+    formula_lhs_ <- ms$resp_var
+    if (!is.null(ms$dec_var)) {
+      formula_lhs_ <- paste0(formula_lhs_,  '| dec(', ms$dec_var, ')')
+    }
+    formula_ <-
+        as.formula(
+          paste0(formula_lhs_, '~', paste(ms$pred_vars, collapse = '+'))
+        )
+    func_formula <- NULL
+    if (ms$func_par!='mu') {
+      formula_ <- as.formula(paste0(formula_lhs_, '~', ms$func_par))
+      func_formula <-
+        as.formula(
+          paste0(ms$func_par, '~', paste(ms$pred_vars, collapse = '+'))
+        )
+    }
 
-      // renew of emission prob: p(O|S1) p(O|S2); O is a pair between A(ction) and R(eward)
-      // --> the probability of actually observing this outcome
-      if (reward[n] == 1) {
-        P_O_S1 = 0.5 * ( (choice[n] == 1)?c[n]:(1-c[n]) );
-        P_O_S2 = 0.5 * ( (choice[n] == 2)?c[n]:(1-c[n]) );
-      } else if (reward[n] == -1) {
-        P_O_S1 = 0.5 * ( (choice[n] == 1)?(1-d[n]):d[n] );
-        P_O_S2 = 0.5 * ( (choice[n] == 2)?(1-d[n]):d[n] );
-      }
+    cat('Formulas: \n')
+    sample_form <-
+      do.call(blmsformula,
+              c(formula_,
+                func_formula,
+                list(model_spec = ms)
+              )
+        )
+    # )
+    print(sample_form)
+    # cat('\n')
 
-      // State belief update using Bayesian rule, after observing the outcome
-      if (( P_O_S1 * Ps[1] + P_O_S2 * Ps[2]) != 0) {
-        Ps[1] = (P_O_S1 * Ps[1]) / ( P_O_S1 * Ps[1] + P_O_S2 * Ps[2]);
-        Ps[2] = 1 - Ps[1];
-      }
-    } // trial loop
-
-    return Ps_out;
+    # cat('Familiy:')
+    print(ms$family)
   }
-    ',
-    block = 'functions'
-  )
+
+ms_env <- new.env(parent = emptyenv())
+ms_env$all_model_specs <- NULL
+
+create_all_model_specs <-
+  function() {
+    model_specs <-
+      list(
 
 
-### ql_2a_it_model_func -----------------------------------------------------
+        ql_a_it =
+          new_model_spec(
+            class = 'ql_a_it',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and inverse temperature'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1, desc = 'Learning rate'),
+              tau = list(lb = 0.0, ub = Inf, desc = 'Inverse temperature')
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_it_probs',
+            func_stanvar = ql_a_it_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   tau ~ inv_logit(tau) * 5.0),
+            doc_helper = list(
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+                ),
+              update_formulas = c(
+                paste0('\\deqn{Q_{a,t+1} = Q_{a,t} + ',
+                       '\\alpha \\times (R_{t} - Q_{a,t})}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{p(a_{i}) = \\frac{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}}}')
+              )
+            )
+          ),
+        ql_a_2it =
+          new_model_spec(
+            class = 'ql_a_it',
+            description = paste0('Rescorla-Wagner (delta) learning model with ',
+                                 'single learning rate and separate inverse ',
+                                 'temperatures based on the outcome of the ',
+                                 'previous trial'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1, desc = 'Learning rate'),
+              taupos = list(lb = 0.0, ub = Inf,
+                            desc = paste0('Inverse temperature ',
+                                          'after receiving positive outcome')),
+              tauneg = list(lb = 0.0, ub = Inf,
+                            desc = paste0('Inverse temperature ',
+                                          'after receiving negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2it_probs',
+            func_stanvar = ql_a_2it_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   taupos + tauneg ~ inv_logit(x) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model with single learning rate and ',
+                             'dual inverse temperature'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\tau_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\tau_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_it =
+          new_model_spec(
+            class = 'ql_2a_it',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and inverse ',
+                                 'temperature'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Inverse temperature'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_2a_it_probs',
+            func_stanvar = ql_2a_it_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   tau ~ inv_logit(tau) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate and ',
+                             'inverse temperature'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}}, ',
+                       ' }')
+              )
+            )
+          ),
+        ql_2a_2it =
+          new_model_spec(
+            class = 'ql_2a_it',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and separate ',
+                                 'inverse temperatures based on the outcome ',
+                                 'of the previous trial'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              taupos = list(lb = 0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                          'a positive outcome')),
+              tauneg = list(lb = 0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                          'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_2a_2it_probs',
+            func_stanvar = ql_2a_2it_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   taupos + tauneg ~ inv_logit(x) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate and ',
+                             'dual inverse temperature'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\tau_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\tau_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_xi =
+          new_model_spec(
+            class = 'ql_a_xi',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and lapse parameter'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              xi = list(lb = 0, ub = 1,
+                        desc = paste0('Lapse parameter'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_xi_probs',
+            func_stanvar = ql_a_xi_probs_func,
+            par_transform =
+              list(alpha + xi ~ inv_logit(x)),
+            doc_helper = list(
+              title = paste0('RL model with learning rate and ',
+                             'lapse parameter'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2xi =
+          new_model_spec(
+            class = 'ql_a_2xi',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate lapse ',
+                                 'parameters based on the outcome of the ',
+                                 'previous trial'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              xipos = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a positive outcome')),
+              xineg = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2xi_probs',
+            func_stanvar = ql_a_2xi_probs_func,
+            par_transform =
+              list(alpha + xineg + xipos ~ inv_logit(x)),
+            doc_helper = list(
+              title = paste0('RL model with learning rate and ',
+                             'dual lapse parameter'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\xi = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_xi =
+          new_model_spec(
+            class = 'ql_2a_xi',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and lapse ',
+                                 'parameter'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              xi = list(lb = 0, ub = 1,
+                        desc = paste0('Lapse parameter'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_xi_probs',
+            func_stanvar = ql_2a_xi_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   xi ~ inv_logit(xi)),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate and ',
+                             'lapse parameter'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2xi =
+          new_model_spec(
+            class = 'ql_2a_2xi',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and lapse ',
+                                 'parameter'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              xipos = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a positive outcome')),
+              xineg = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_2xi_probs',
+            func_stanvar = ql_2a_2xi_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   xipos + xineg ~ inv_logit(x)),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate and ',
+                             'dual lapse parameter'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\xi = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_rho =
+          new_model_spec(
+            class = 'ql_a_rho',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and reward sensitivity ',
+                                 'parameter'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_rho_probs',
+            func_stanvar = ql_a_rho_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha), rho ~ inv_logit(rho) * 20),
+            doc_helper = list(
+              title = paste0('RL model with learning rate and ',
+                             'reward sensitivity'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_rho =
+          new_model_spec(
+            class = 'ql_2a_rho',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and reward ',
+                                 'sensitivity parameter'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_rho_probs',
+            func_stanvar = ql_2a_rho_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rho ~ inv_logit(rho) * 20),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate and ',
+                             'reward sensitivity'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2rho =
+          new_model_spec(
+            class = 'ql_a_2rho',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate reward ',
+                                 'sensitivity parameters for positive and ',
+                                 'negative outcomes'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              rhopos = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'positive outcome')),
+              rhoneg = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2rho_probs',
+            func_stanvar = ql_a_2rho_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   rhopos + rhoneg ~ inv_logit(x) * 20),
+            doc_helper = list(
+              title = paste0('RL model with learning rate and ',
+                             'dual reward sensitivity'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} &= ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\rho = \\begin{cases} ',
+                       '\\rho_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\rho_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2rho =
+          new_model_spec(
+            class = 'ql_2a_2rho',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and separate ',
+                                 'reward sensitivity parameters for positive ',
+                                 'and negative outcomes'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              rhopos = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'positive outcome')),
+              rhoneg = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_2rho_probs',
+            func_stanvar = ql_2a_2rho_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rhopos + rhoneg ~ inv_logit(x) * 20),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate and ',
+                             'dual reward sensitivity'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       ' } \\deqn{ ',
+                       '\\quad \\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       ', \\quad \\rho = \\begin{cases} ',
+                       '\\rho_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\rho_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
 
 
-ql_2a_it_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_2a_it_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector tau) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
 
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
 
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
 
-    for (n in 1:nT)  {
+        ql_a_it_fu =
+          new_model_spec(
+            class = 'ql_a_it_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and inverse ',
+                                 'temperature plus fictitious update of the ',
+                                 'unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              tau = list(lb = 0.0, ub = Inf,
+                         desc = paste0('Inverse temperature'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_it_fu_probs',
+            func_stanvar = ql_a_it_fu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   tau ~ inv_logit(tau) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'inverse temperature, and fictitious update of ',
+                             'the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2it_fu =
+          new_model_spec(
+            class = 'ql_a_it_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate inverse ',
+                                 'temperatures based on the outcome of the ',
+                                 'previous trial plus fictitious update of ',
+                                 'the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              taupos = list(lb = 0.0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                   'a positive outcome')),
+              tauneg = list(lb = 0.0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                   'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2it_fu_probs',
+            func_stanvar = ql_a_2it_fu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   taupos + tauneg ~ inv_logit(x) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'dual inverse temperature, and fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\tau_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\tau_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_it_fu =
+          new_model_spec(
+            class = 'ql_2a_it_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and inverse ',
+                                 'temperature plus fictitious update of the ',
+                                 'unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                     'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                     'a negative outcome')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Inverse temeprature'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_2a_it_fu_probs',
+            func_stanvar = ql_2a_it_fu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   tau ~ inv_logit(tau) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'inverse temperature, and fictitious update of ',
+                             'the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2it_fu =
+          new_model_spec(
+            class = 'ql_2a_2it_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and separate ',
+                                 'inverse temperatures based on the outcome ',
+                                 'of the previous trial plus fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                     'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              taupos = list(lb = 0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                          'a positive outcome')),
+              tauneg = list(lb = 0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                          'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_2a_2it_fu_probs',
+            func_stanvar = ql_2a_2it_fu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   taupos + tauneg ~ inv_logit(x) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'dual inverse temperature, and fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\tau_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\tau_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_xi_fu =
+          new_model_spec(
+            class = 'ql_a_xi_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and lapse parameter ',
+                                 ' plus fictitious update of the unchosen ',
+                                 'option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1),
+              xi = list(lb = 0, ub = 1)
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_xi_fu_probs',
+            func_stanvar = ql_a_xi_fu_probs_func,
+            par_transform =
+              list(alpha + xi ~ inv_logit(x)),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'lapse parameter, and fictitious update of the ',
+                             'unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2xi_fu =
+          new_model_spec(
+            class = 'ql_a_2xi_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate lapse ',
+                                 'parameters based on the outcome of the ',
+                                 'previous trial plus fictitious update of ',
+                                 'the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Leanring rate')),
+              xipos = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a positive outcome')),
+              xineg = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2xi_fu_probs',
+            func_stanvar = ql_a_2xi_fu_probs_func,
+            par_transform =
+              list(alpha + xipos + xineg ~ inv_logit(x)),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'dual lapse parameter, and fictitious update ',
+                             'of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       # 'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_xi_fu =
+          new_model_spec(
+            class = 'ql_2a_xi_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and lapse ',
+                                 'parameter plus fictitious update of the ',
+                                 'unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              xi = list(lb = 0, ub = 1,
+                        desc = paste0('Lapse parameter'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_xi_fu_probs',
+            func_stanvar = ql_2a_xi_fu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   xi ~ inv_logit(xi)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'lapse parameter, and fictitious update of ',
+                             'the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       # ' } \\deqn{ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
 
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2xi_fu =
+          new_model_spec(
+            class = 'ql_2a_2xi_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and lapse ',
+                                 'parameter plus fictitious update of the ',
+                                 'unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              xipos = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a positive outcome')),
+              xineg = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_2xi_fu_probs',
+            func_stanvar = ql_2a_2xi_fu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   xipos + xineg ~ inv_logit(x)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'dual inverse temperature, and fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_rho_fu =
+          new_model_spec(
+            class = 'ql_a_rho_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and reward sensitivity ',
+                                 'parameter plus fictitious update of the ',
+                                 'unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_rho_fu_probs',
+            func_stanvar = ql_a_rho_fu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha), rho ~ inv_logit(rho) * 20),
+            doc_helper = list(
+              title = paste0('RL model with learning rate, ',
+                             'reward sensitivity, and fictitious update ',
+                             'of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times ',
+                       '(-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_rho_fu =
+          new_model_spec(
+            class = 'ql_2a_rho_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and reward ',
+                                 'sensitivity parameter plus fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_rho_fu_probs',
+            func_stanvar = ql_2a_rho_fu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rho ~ inv_logit(rho) * 20),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate, ',
+                             'reward sensitivity, and fictitious update ',
+                             'of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times ',
+                       '(-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2rho_fu =
+          new_model_spec(
+            class = 'ql_a_2rho_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate reward ',
+                                 'sensitivity parameters for positive and ',
+                                 'negative outcomes plus fictitious update of ',
+                                 'the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              rhopos = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'positive outcome')),
+              rhoneg = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2rho_fu_probs',
+            func_stanvar = ql_a_2rho_fu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   rhopos + rhoneg ~ inv_logit(x) * 20),
+            doc_helper = list(
+              title = paste0('RL model with learning rate, ',
+                             'dual reward sensitivity, and fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times ',
+                       '(-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\rho = \\begin{cases} ',
+                       '\\rho_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\rho_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2rho_fu =
+          new_model_spec(
+            class = 'ql_2a_2rho_fu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and separate ',
+                                 'reward sensitivity parameters for positive ',
+                                 'and negative outcomes plus fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              rhopos = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'positive outcome')),
+              rhoneg = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'negative outcome'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_2rho_fu_probs',
+            func_stanvar = ql_2a_2rho_fu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rhopos + rhoneg ~ inv_logit(x) * 20),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate, ',
+                             'dual reward sensitivity, and fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       ', \\quad \\rho = \\begin{cases} ',
+                       '\\rho_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\rho_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
 
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
 
-      // compute action probabilities
-      Ps = softmax(Qs*tau[n]);
-      Ps_out[n] = Ps[2]; // predicting upper bound
 
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
+        ql_a_it_kfu =
+          new_model_spec(
+            class = 'ql_a_it_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and inverse ',
+                                 'temperature plus weighted fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              tau = list(lb = 0.0, ub = Inf,
+                         desc = paste0('Inverse temperature')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_it_kfu_probs',
+            func_stanvar = ql_a_it_kfu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   tau ~ inv_logit(tau) * 5.0,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'inverse temperature, and weighted fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2it_kfu =
+          new_model_spec(
+            class = 'ql_a_it_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate inverse ',
+                                 'temperatures based on the outcome of the ',
+                                 'previous trial plus weighted fictitious ',
+                                 'update of the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              taupos = list(lb = 0.0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                   'a positive outcome')),
+              tauneg = list(lb = 0.0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                   'a negative outcome')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2it_kfu_probs',
+            func_stanvar = ql_a_2it_kfu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   taupos + tauneg ~ inv_logit(x) * 5.0,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'dual inverse temperature, and weihted ',
+                             'fictitious update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\tau_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\tau_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_it_kfu =
+          new_model_spec(
+            class = 'ql_2a_it_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and inverse ',
+                                 'temperature plus weighted fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1),
+              alphaneg = list(lb = 0, ub = 1),
+              tau = list(lb = 0, ub = Inf),
+              kappa = list(lb = 0, ub = 1)
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_2a_it_kfu_probs',
+            func_stanvar = ql_2a_it_kfu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   tau ~ inv_logit(tau) * 5.0,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'inverse temperature, and weighted fictious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times (-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2it_kfu =
+          new_model_spec(
+            class = 'ql_2a_it_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and separate ',
+                                 'inverse temperatures based on the outcome ',
+                                 'of the previous trial plus weighted ',
+                                 'fictitious update of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                     'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              taupos = list(lb = 0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                          'a positive outcome')),
+              tauneg = list(lb = 0, ub = Inf,
+                            desc = paste0('Inverse temperature after receiving ',
+                                          'a negative outcome')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = 'blockgrp',
+            func_name = 'ql_2a_2it_kfu_probs',
+            func_stanvar = ql_2a_2it_kfu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   taupos + tauneg ~ inv_logit(x) * 5.0,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate,  ',
+                             'dual inverse temperature, and weighted ',
+                             'fictitious update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}} ',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\tau_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\tau_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_xi_kfu =
+          new_model_spec(
+            class = 'ql_a_xi_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and lapse parameter ',
+                                 'plus weighted fictitious update of the ',
+                                 'unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = 'Learning rate'),
+              xi = list(lb = 0, ub = 1,
+                        desc = 'Lapse parameter'),
+              kappa = list(lb = 0, ub = 1,
+                           desc = 'Discount weight')
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_xi_kfu_probs',
+            func_stanvar = ql_a_xi_kfu_probs_func,
+            par_transform =
+              list(alpha + xi ~ inv_logit(x),
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'inverse temperature, and weighted fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       # 'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t}  - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2xi_kfu =
+          new_model_spec(
+            class = 'ql_a_2xi_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate lapse ',
+                                 'parameters based on the outcome of the ',
+                                 'previous trial plus weighted fictitious ',
+                                 'update of the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Leanring rate')),
+              xipos = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a positive outcome')),
+              xineg = list(lb = 0, ub = 1,
+                           desc = paste0('Lapse parameter after receiving ',
+                                         'a negative outcome')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = 'Discount weight')
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2xi_kfu_probs',
+            func_stanvar = ql_a_2xi_kfu_probs_func,
+            par_transform =
+              list(alpha + xi ~ inv_logit(x),
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model learning rate, ',
+                             'dual inverse temperature, and weighted ',
+                             'fictitious update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_xi_kfu =
+          new_model_spec(
+            class = 'ql_2a_xi_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and lapse ',
+                                 'parameter plus weighted fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              xi = list(lb = 0, ub = 1,
+                        desc = paste0('Lapse parameter')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_xi_kfu_probs',
+            func_stanvar = ql_2a_xi_kfu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   xi ~ inv_logit(xi),
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'lapse parameter, and weighted fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       ' \\\\ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' }\\deqn{',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2xi_kfu =
+          new_model_spec(
+            class = 'ql_2a_2xi_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and lapse ',
+                                 'parameter plus weighted fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = 'Learning rate after positive outcome'),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = 'Learning rate after negative outcome'),
+              xipos = list(lb = 0, ub = 1,
+                           desc = 'Lapse parameter after positive outcome'),
+              xineg = list(lb = 0, ub = 1,
+                           desc = 'Lapse parameter after positive outcome'),
+              kappa = list(lb = 0, ub = 1,
+                           desc = 'Discount weight')
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_2xi_kfu_probs',
+            func_stanvar = ql_2a_2xi_kfu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   xi ~ inv_logit(xi),
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model dual learning rate, ',
+                             'dual inverse temperature, and weighted ',
+                             'fictitious update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-R_{t} - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\left(\\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}}\\right) ',
+                       '\\times (1 - \\xi) + \\frac{\\xi}{2}',
+                       ',\\quad \\text{where } \\tau = \\begin{cases} ',
+                       '\\xi_{pos} & \\text{if } R_{t-1} \\geq 0',
+                       ' \\\\ ',
+                       '\\xi_{neg} & \\text{if } R_{t-1} \\lt 0',
+                       '\\end{cases} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_rho_kfu =
+          new_model_spec(
+            class = 'ql_a_rho_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and reward sensitivity ',
+                                 'parameter plus weighted fictitious update ',
+                                 'of the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = 'Discount weight')
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_rho_kfu_probs',
+            func_stanvar = ql_a_rho_kfu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   rho ~ inv_logit(rho) * 20,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model with learning rate, ',
+                             'reward sensitivity, and weighted fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\alpha \\times (-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_rho_kfu =
+          new_model_spec(
+            class = 'ql_2a_rho_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and reward ',
+                                 'sensitivity parameter plus weighted ',
+                                 'fictitious update of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_rho_kfu_probs',
+            func_stanvar = ql_2a_rho_kfu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rho ~ inv_logit(rho) * 20,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate, ',
+                             'reward sensitivity, and weighted fictitious ',
+                             'update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       ' \\\\ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa \\alpha \\times ',
+                       '(-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_a_2rho_kfu =
+          new_model_spec(
+            class = 'ql_a_2rho_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and separate reward ',
+                                 'sensitivity parameters for positive and ',
+                                 'negative outcomes plus weighted fictitious ',
+                                 'update of the unchosen option'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Learning rate')),
+              rhopos = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'positive outcome')),
+              rhoneg = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'negative outcome')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_a_2rho_kfu_probs',
+            func_stanvar = ql_a_2rho_kfu_probs_func,
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   rhopos + rhoneg ~ inv_logit(x) * 20,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model with learning rate, ',
+                             'dual reward sensitivity, and weighted ',
+                             'fictitious update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       ' \\\\ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa\\alpha \\times ',
+                       '(-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\rho = \\begin{cases} ',
+                       '\\rho_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\rho_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
+        ql_2a_2rho_kfu =
+          new_model_spec(
+            class = 'ql_2a_2rho_kfu',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors and separate ',
+                                 'reward sensitivity parameters for positive ',
+                                 'and negative outcomes plus weighted ',
+                                 'fictitious update of the unchosen option'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              rhopos = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'positive outcome')),
+              rhoneg = list(lb = -Inf, ub = Inf,
+                            desc = paste0('Reward sensitivity for receiving ',
+                                          'negative outcome')),
+              kappa = list(lb = 0, ub = 1,
+                           desc = paste0('Discount weight'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'ql_2a_2rho_kfu_probs',
+            func_stanvar = ql_2a_2rho_kfu_probs_func,
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   rhopos + rhoneg ~ inv_logit(x) * 20,
+                   kappa ~ inv_logit(kappa)),
+            doc_helper = list(
+              title = paste0('RL model with dual learning rate, ',
+                             'dual reward sensitivity, and weighted ',
+                             'fictitious update of the unchosen option'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{',
+                       # '\\[ \\begin{align*}',
+                       'Q_{a,t+1} = ',
+                       'Q_{a,t} + \\alpha \\times (\\rho R_{t} - Q_{a,t})',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       'Q_{a_{unchosen},t+1} = ',
+                       'Q_{a_{unchosen},t} + ',
+                       '\\kappa\\alpha \\times ',
+                       '(-(\\rho R_{t}) - Q_{a_{unchosen},t})',
+                       # '\\end{align*} ',
+                       # ' \\\\ ',
+                       ' } \\deqn{ ',
+                       '\\text{where } \\alpha = \\begin{cases} ',
+                       '\\alpha_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\alpha_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       ', \\quad  \\rho = \\begin{cases} ',
+                       '\\rho_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\rho_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       'p(a_{i}) = \\frac',
+                       '{e^{Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{Q_{a_{j}}}} ',
+                       '}')
+              )
+            )
+          ),
 
-      // value updating (learning)
-      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
-      Qs[ci] += alpha * PE;
 
-    } // trial loop
 
-    return Ps_out;
+
+
+
+
+
+
+
+
+
+        hmm_rp =
+          new_model_spec(
+            class = 'hmm_rp',
+            description = paste0('HMM model with separate emission ',
+                                 'probabilities for reward and punishment ',
+                                 'outcomes (cf. Schlagenhauf et al. 2014)'),
+            parameters = list(
+              gamma = list(lb = 0, ub = 1,
+                           desc = paste0('Transition probability')),
+              c = list(lb = 0.5, ub = 1,
+                       desc = paste0('Emission probability for rewards')),
+              d = list(lb = 0.5, ub = 1,
+                       desc = paste0('Emission probability for rewards'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            func_name = 'hmm_rp_probs',
+            func_stanvar = hmm_rp_probs_func,
+            par_transform =
+              list(gamma ~ inv_logit(gamma),
+                   c + d ~ inv_logit(x) * 0.5 + 0.5)
+          ),
+        qlddm_2a =
+          new_model_spec(
+            class = 'qlddm_2a',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'separate learning rates for positive and ',
+                                 'negative prediction errors mapped to drift ',
+                                 'rate of the wiener distribution'),
+            parameters = list(
+              alphapos = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a positive outcome')),
+              alphaneg = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate after receiving ',
+                                            'a negative outcome')),
+              delta = list(lb=-Inf, ub = Inf,
+                           desc = paste0('Slope of the random walk')),
+              nu = list(lb=-Inf, ub = Inf,
+                        desc = paste0('Slope of the random walk')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Non-descision time')),
+              alpha = list(lb = 0, ub = Inf,
+                           desc = paste0('Boundary separation')),
+              beta = list(lb = 0, ub = 1,
+                          desc = paste0('Bias'))
+            ),
+            resp_var = 'rt',
+            dec_var = 'choice',
+            pred_vars = c('reward'),
+            fixed_vars = list(
+              rtbound = .1,
+              beta = .5
+            ),
+            func_name = 'qlddm_2a_qdiff_nu',
+            func_stanvar = qlddm_2a_qdiff_nu_func,
+            func_input = c('blockgrp', 'choice', 'reward',
+                           'alphapos', 'alphaneg', 'nu'),
+            func_params = c('alphapos', 'alphaneg', 'nu'),
+            func_par = 'delta',
+            family =  brms::wiener(link='identity',
+                                   link_bs = 'log',
+                                   link_ndt = 'identity',
+                                   link_bias = 'identity'),
+            par_form = list(delta ~ 1, nu ~ 1,
+                            alphapos ~ 1, alphaneg ~ 1,
+                            bias ~ beta, beta ~ 1,
+                            bs ~ alpha, alpha ~ 1,
+                            ndt ~ tau, tau ~ 1
+            ),
+            par_transform =
+              list(alphapos + alphaneg ~ inv_logit(x),
+                   tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound)
+          ),
+        qlddm_a =
+          new_model_spec(
+            class = 'qlddm_a',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'learning rate eta mapped to drift rate of the ',
+                                 'wiener distribution'),
+            parameters = list(
+              eta = list(lb = 0, ub = 1,
+                              desc = paste0('Learning rate')),
+              delta = list(lb=-Inf, ub = Inf,
+                           desc = paste0('Slope of the random walk')),
+              nu = list(lb=-Inf, ub = Inf,
+                           desc = paste0('Slope of the random walk')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Non-descision time')),
+              alpha = list(lb = 0, ub = Inf,
+                           desc = paste0('Boundary separation')),
+              beta = list(lb = 0, ub = 1,
+                          desc = paste0('Bias'))
+            ),
+            resp_var = 'rt',
+            dec_var = 'choice',
+            pred_vars = c('reward'),
+            fixed_vars = list(
+              rtbound = .1,
+              beta = .5
+            ),
+            func_name = 'qlddm_a_qdiff_nu',
+            func_stanvar = qlddm_a_qdiff_nu_func,
+            func_input = c('blockgrp', 'choice', 'reward', 'eta', 'nu'),
+            func_data = c('choice', 'reward'),
+            func_params = c('eta', 'nu'),
+            func_par = 'delta',
+            family =  brms::wiener(link='identity',
+                                   link_bs = 'identity',
+                                   link_ndt = 'identity',
+                                   link_bias = 'identity'),
+            par_form = list(delta ~ 1, nu ~ 1,
+                            eta ~ 1,
+                            bias ~ beta, beta ~ 1,
+                            bs ~ alpha, alpha ~ 1,
+                            ndt ~ tau, tau ~ 1
+            ),
+            par_transform =
+              list(eta ~ inv_logit(eta), alpha ~ exp(alpha),
+                   tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound)
+          ),
+        ql_a_it_blm =
+          new_model_spec(
+            class = 'ql_a_it',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'single learning rate and inverse temperature'),
+            parameters = list(
+              alpha = list(lb = 0, ub = 1,
+                           desc = paste0('Leanring rate')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Inverse temperature'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = NULL,
+            func_name = 'ql_a_it_probs',
+            func_stanvar = ql_a_it_blm_probs_func,
+            func_input = c('choice', 'reward', 'alpha', 'tau'),
+            par_transform =
+              list(alpha ~ inv_logit(alpha),
+                   tau ~ inv_logit(tau) * 5.0),
+            doc_helper = list(
+              title = paste0('RL model with learning rate and ',
+                             'inverse temperature'),
+              formula_arg = '',
+              references = c(
+                paste0('Watkins, C. J. C. H., & Dayan, P. (1992). ',
+                       'Q-learning. *Machine Learning*, 8(3), 279–292. ',
+                       '\\url{https://doi.org/10.1007/BF00992698}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{Q_{a,t+1} = Q_{a,t} + ',
+                       '\\alpha \\times (R_{t} - Q_{a,t})}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{p(a_{i}) = \\frac{e^{\\tau Q_{a_{i}}}}',
+                       '{\\sum_{j=1}^{K} e^{\\tau Q_{a_{j}}}}}')
+              )
+            ),
+            use_blm = T
+          ),
+        hmm_rp_blm =
+          new_model_spec(
+            class = 'hmm_rp',
+            description = paste0('HMM model with separate emission probabilities ',
+                                 'for reward and punishment outcomes ',
+                                 '(cf. Schlagenhauf et al. 2014)'),
+            parameters = list(
+              gamma = list(lb = 0, ub = 1,
+                           desc = paste0('Transition probability')),
+              c = list(lb = 0.5, ub = 1,
+                       desc = paste0('Emission probability for rewards')),
+              d = list(lb = 0.5, ub = 1,
+                       desc = paste0('Emission probability for rewards'))
+            ),
+            resp_var = 'choice',
+            pred_vars = c('reward'),
+            block_var = NULL,
+            func_name = 'hmm_rp_probs',
+            func_stanvar = hmm_rp_blm_probs_func,
+            func_input = c('choice', 'reward', 'gamma', 'c', 'd'),
+            par_transform =
+              list(gamma ~ inv_logit(gamma),
+                   c + d ~ inv_logit(x) * 0.5 + 0.5)
+          )
+
+      )
   }
-    ',
-    block = 'functions'
-  )
-
-
-### ql_a_it_model_func -----------------------------------------------------
-
-
-ql_a_it_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_a_it_probs(vector block_grp, vector choice, vector reward, vector alpha, vector tau) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT)  {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs*tau[n]);
-      Ps_out[n] = Ps[2]; // predicting upper bound
-
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      Qs[ci] += alpha[n] * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-
-### ql_2a_xi_model_func -----------------------------------------------------
-
-ql_2a_xi_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_2a_xi_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector xi) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2] * (1-xi[n]) + xi[n]/2; // predicting upper bound
-
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
-      Qs[ci] += alpha * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### ql_a_xi_model_func -----------------------------------------------------
-
-ql_a_xi_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_a_xi_probs(vector block_grp, vector choice, vector reward, vector alpha, vector xi) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2] * (1-xi[n]) + xi[n]/2; // predicting upper bound
-
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      Qs[ci] += alpha[n] * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### ql_2a_rho_model_func -----------------------------------------------------
-
-ql_2a_rho_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_2a_rho_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rho) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2]; // predicting upper bound
-
-      // prediction error
-      PE = (rho[n]*reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
-      Qs[ci] += alpha * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### ql_a_rho_model_func -----------------------------------------------------
-
-ql_a_rho_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_a_rho_probs(vector block_grp, vector choice, vector reward, vector alpha, vector rho) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2]; // predicting upper bound
-
-      // prediction error
-      PE = (rho[n]*reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      Qs[ci] += alpha[n] * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### ql_2a_2rho_model_func -----------------------------------------------------
-
-ql_2a_2rho_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_2a_2rho_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rhopos, vector rhoneg) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    real rho;           // effective reward sensitivity (rhopos or rhoneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2]; // predicting upper bound
-
-      // prediction error
-      rho = (reward[n] > 0 ? rhopos[n] : rhoneg[n]);
-      PE = (rho*reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
-      Qs[ci] += alpha * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### ql_a_2rho_model_func -----------------------------------------------------
-
-ql_a_2rho_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_a_2rho_probs(vector block_grp, vector choice, vector reward, vector alpha, vector rhopos, vector rhoneg) {
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real rho;           // effective reward sensitivity (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2]; // predicting upper bound
-
-      // prediction error
-      rho = (reward[n] > 0 ? rhopos[n] : rhoneg[n]);
-      PE = (rho*reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      Qs[ci] += alpha[n] * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-
-### ql_a_2rho_fu_model_func -----------------------------------------------------
-
-ql_a_2rho_fu_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_a_2rho_fu_probs(vector block_grp, vector choice, vector reward, vector alpha, vector rhopos, vector rhoneg) {
-
-    //      ⣾⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⠀⠀⣰⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⠀⢰⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⢀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⣄⣀⣀⣤⣤⣶⣾⣿⣿⣿⡷
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀
-    //  ⣿⣿⣿⡇⠀⡾⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠁⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣧⡀⠁⣀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠉⢹⠉⠙⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣀⠀⣀⣼⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠀⠤⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⣿⣿⠿⣿⣿⣿⣿⣿⣿⣿⠿⠋⢃⠈⠢⡁⠒⠄⡀⠈⠁⠀⠀⠀⠀⠀⠀⠀
-    //  ⣿⣿⠟⠁⠀⠀⠈⠉⠉⠁⠀⠀⠀⠀⠈⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    //  ⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-
-    int nT = size(choice);
-    vector[nT] Ps_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real PE_unchosen;   // prediction error for uchosen options
-    real rho;           // effective reward sensitivity (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT) {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Ps = softmax(Qs);
-      Ps_out[n] = Ps[2]; // predicting upper bound
-
-      // prediction error
-      rho = (reward[n] > 0 ? rhopos[n] : rhoneg[n]);
-      PE = (rho*reward[n]) - Qs[ci];
-      PE_unchosen = (rho*(reward[n]*-1)) - Qs[3-ci];
-
-
-      // value updating (learning)
-      Qs[ci] += alpha[n] * PE;
-      Qs[3-ci] += alpha[n] * PE_unchosen; # ficticious update
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### qlddm_2a_qdiff_model_func ---------------------------------------------
-
-
-qlddm_2a_qdiff_model_func <-
-  brms::stanvar(
-    scode = '
-  vector ql_2a_qdiff(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg) {
-    int nT = size(choice);
-    vector[nT] Qdiffs_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT)  {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-      if(block_grp[n]==0) {
-        Qdiffs_out[n] = 0.0;
-        continue;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      Qdiffs_out[n] = Qs[2]-Qs[1]; // predicting upper bound
-
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
-      Qs[ci] += alpha * PE;
-
-    } // trial loop
-
-    return Ps_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-### qlddm_2a_qdiff_nu_model_func ---------------------------------------------
-
-
-qlddm_2a_qdiff_nu_model_func <-
-  brms::stanvar(
-    scode = '
-  vector qlddm_2a_qdiff_nu(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector nu) {
-    int nT = size(choice);
-    vector[nT] nu_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    real alpha;         // effective learning rate (alphapos or alphaneg, respectively)
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT)  {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-      if(block_grp[n]==0) {
-        nu_out[n] = 0.0;
-        continue;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      nu_out[n] = nu[n]*(Qs[2]-Qs[1]); // predicting upper bound
-
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      alpha = (PE >= 0) ? alphapos[n] : alphaneg[n];
-      Qs[ci] += alpha * PE;
-
-    } // trial loop
-
-    return nu_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-
-
-
-### qlddm_a_qdiff_nu_model_func ---------------------------------------------
-
-
-qlddm_a_qdiff_nu_model_func <-
-  brms::stanvar(
-    scode = '
-  vector qlddm_a_qdiff_nu(vector block_grp, vector choice, vector reward, vector eta, vector nu) {
-    int nT = size(choice);
-    vector[nT] nu_out;
-
-    vector[2] Qs;       // expectation value
-    vector[2] Qs_init;  // initial expectation values
-    real PE;            // prediction error
-    vector[2] Ps;       // probabilities based on the softmax of the Q values
-    int ci;             // index of the choice for which the ev needs to be updated
-                        // 1 corresponds to the "lower bound" (coded as 0)
-                        // 2 corresponds to the "upper bound" (coded as 1)
-
-    Qs_init = rep_vector(0.0, 2);
-    Qs = Qs_init;
-
-    for (n in 1:nT)  {
-
-      if (n == 1 || block_grp[n]!=block_grp[n-1]) {
-        Qs = Qs_init;
-      }
-      if(block_grp[n]==0) {
-        nu_out[n] = 0.0;
-        continue;
-      }
-
-      // get choice of current trial (either 1 or 2)
-      ci = (choice[n]==1 ? 2 : 1);
-
-      // compute action probabilities
-      nu_out[n] = nu[n]*(Qs[2]-Qs[1]); // predicting upper bound
-
-      // prediction error
-      PE = (reward[n]) - Qs[ci];
-
-      // value updating (learning)
-      Qs[ci] += eta[n] * PE;
-
-    } // trial loop
-
-    return nu_out;
-  }
-    ',
-    block = 'functions'
-  )
-
-
-
-
-## model specs -------------------------------------------------------------
-
 
 #' Get currently available model specifications
 #'
@@ -763,341 +2737,11 @@ qlddm_a_qdiff_nu_model_func <-
 #' @export
 get_all_model_specs <-
   function() {
-    model_specs <-
-      list(
-        hmm_rp =
-          list(
-            class = 'hmm_rp',
-            description = 'HMM model with separate emission probabilities for reward and punishment outcomes (cf. Schlagenhauf et al. 2014)',
-            parameters = list(
-              gamma = list(lb = 0, ub = 1),
-              c = list(lb = 0.5, ub = 1),
-              d = list(lb = 0.5, ub = 1)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'hmm_rp_probs',
-            func_stanvar = hmm_rp_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'gamma', 'c', 'd'),
-            func_data = c('choice', 'reward'),
-            func_params = c('gamma', 'c', 'd'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(gamma ~1, c ~1, d ~1),
-            par_transform =
-              list(gamma ~ inv_logit(gamma),
-                   c + d ~ inv_logit(x) * 0.5 + 0.5)
-          ),
-        hmm_rp2 =
-          list(
-            class = 'hmm_rp2',
-            description = 'HMM model with separate emission probabilities for reward and punishment outcomes (cf. Schlagenhauf et al. 2014)',
-            parameters = list(
-              gamma = list(lb = 0, ub = 1),
-              c = list(lb = 0.5, ub = 1),
-              d = list(lb = 0.5, ub = 1)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = NULL,
-            func_name = 'hmm_rp_probs',
-            func_stanvar = hmm_rp_model_func2,
-            func_input = c('choice', 'reward', 'gamma', 'c', 'd'),
-            func_data = c('choice', 'reward'),
-            func_params = c('gamma', 'c', 'd'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(gamma ~1, c ~1, d ~1),
-            par_transform =
-              list(gamma ~ inv_logit(gamma),
-                   c + d ~ inv_logit(x) * 0.5 + 0.5)
-          ),
-        ql_a_it =
-          list(
-            class = 'ql_a_it',
-            description = 'Rescorla-Wagner delta learning model with single learning rate and inverse temperature',
-            parameters = list(
-              alpha = list(lb = 0, ub = 1),
-              tau = list(lb = 0.0, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_a_it_probs',
-            func_stanvar = ql_a_it_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alpha', 'tau'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alpha', 'tau'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alpha ~1, tau ~1),
-            par_transform =
-              list(alpha ~ inv_logit(alpha),
-                   tau ~ inv_logit(tau) * 20.0)
-          ),
-        ql_2a_it =
-          list(
-            class = 'ql_2a_it',
-            description = 'Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and inverse temperature',
-            parameters = list(
-              alphapos = list(lb = 0, ub = 1),
-              alphaneg = list(lb = 0, ub = 1),
-              tau = list(lb = 0.0, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_2a_it_probs',
-            func_stanvar = ql_2a_it_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'tau'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alphapos', 'alphaneg', 'tau'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alphapos ~1, alphaneg ~1, tau ~1),
-            par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x),
-                   tau ~ inv_logit(tau) * 20.0)
-          ),
-        ql_a_xi =
-          list(
-            class = 'ql_a_xi',
-            description = 'Rescorla-Wagner delta learning model with single learning rate and lapse parameter',
-            parameters = list(
-              alpha = list(lb = 0, ub = 1),
-              xi = list(lb = 0.0, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_a_xi_probs',
-            func_stanvar = ql_a_xi_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alpha', 'xi'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alpha', 'xi'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alpha ~1, xi ~1),
-            par_transform =
-              list(alpha ~ inv_logit(alpha),
-                   xi ~ inv_logit(xi))
-          ),
-        ql_2a_xi =
-          list(
-            class = 'ql_2a_xi',
-            description = 'Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and lapse parameter',
-            parameters = list(
-              alphapos = list(lb = 0, ub = 1),
-              alphaneg = list(lb = 0, ub = 1),
-              xi = list(lb = 0.0, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_2a_xi_probs',
-            func_stanvar = ql_2a_xi_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'xi'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alphapos', 'alphaneg', 'xi'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alphapos ~1, alphaneg ~1, xi ~1),
-            par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x),
-                   xi ~ inv_logit(xi))
-          ),
-        ql_a_rho =
-          list(
-            class = 'ql_a_rho',
-            description = 'Rescorla-Wagner delta learning model with single learning rate and reward sensitivity parameter',
-            parameters = list(
-              alpha = list(lb = 0, ub = 1),
-              rho = list(lb = -Inf, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_a_rho_probs',
-            func_stanvar = ql_a_rho_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alpha', 'rho'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alpha', 'rho'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alpha ~1, rho ~1),
-            par_transform =
-              list(alpha ~ inv_logit(alpha), rho ~ inv_logit(rho) * 20)
-          ),
-        ql_2a_rho =
-          list(
-            class = 'ql_2a_rho',
-            description = 'Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and reward sensitivity parameter',
-            parameters = list(
-              alphapos = list(lb = 0, ub = 1),
-              alphaneg = list(lb = 0, ub = 1),
-              rho = list(lb = -Inf, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_2a_rho_probs',
-            func_stanvar = ql_2a_rho_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'rho'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alphapos', 'alphaneg', 'rho'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alphapos ~ 1, alphaneg ~ 1, rho ~ 1),
-            par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x), rho ~ inv_logit(rho) * 20)
-          ),
-        ql_a_2rho =
-          list(
-            class = 'ql_a_2rho',
-            description = 'Rescorla-Wagner delta learning model with single learning rate and separate reward sensitivity parameters for positive and negative outcomes',
-            parameters = list(
-              alpha = list(lb = 0, ub = 1),
-              rhopos = list(lb = -Inf, ub = Inf),
-              rhoneg = list(lb = -Inf, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_a_2rho_probs',
-            func_stanvar = ql_a_2rho_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alpha', 'rhospos', 'rhoneg'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alpha', 'rhopos', 'rhoneg'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alpha ~1, rhopos ~1, rhoneg ~1),
-            par_transform =
-              list(alpha ~ inv_logit(alpha), rhopos + rhoneg ~ inv_logit(x) * 20)
-          ),
-        ql_a_2rho_fu =
-          list(
-            class = 'ql_a_2rho_fu',
-            description = 'Rescorla-Wagner delta learning model with single learning rate and separate reward sensitivity parameters for positive and negative outcomes plus fictitious update of unchosen option',
-            parameters = list(
-              alpha = list(lb = 0, ub = 1),
-              rhopos = list(lb = -Inf, ub = Inf),
-              rhoneg = list(lb = -Inf, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'ql_a_2rho_fu_probs',
-            func_stanvar = ql_a_2rho_fu_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alpha', 'rhospos', 'rhoneg'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alpha', 'rhopos', 'rhoneg'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alpha ~1, rhopos ~1, rhoneg ~1),
-            par_transform =
-              list(alpha ~ inv_logit(alpha), rhopos + rhoneg ~ inv_logit(x) * 20)
-          ),
-        ql_2a_2rho =
-          list(
-            class = 'ql_2a_2rho',
-            description = 'Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and separate reward sensitivity parameters for positive and negative outcomes',
-            parameters = list(
-              alphapos = list(lb = 0, ub = 1),
-              alphaneg = list(lb = 0, ub = 1),
-              rhopos = list(lb = -Inf, ub = Inf),
-              rhoneg = list(lb = -Inf, ub = Inf)
-            ),
-            resp_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            func_name = 'qlddm_2a_qdiffs',
-            func_stanvar = ql_2a_2rho_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'rhopos', 'rhoneg'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alphapos', 'alphaneg', 'rhopos', 'rhoneg'),
-            func_par = 'mu',
-            family =  brms::bernoulli(link='identity'),
-            par_form = list(alphapos ~ 1, alphaneg ~ 1, rhopos ~ 1, rhoneg ~1),
-            par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x),
-                   rhopos + rhoneg ~ inv_logit(x) * 20)
-          ),
-        qlddm_2a =
-          list(
-            class = 'qlddm_2a',
-            description = 'Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors mapped to drift rate of the wiener dsitribution',
-            parameters = list(
-              alphapos = list(lb = 0, ub = 1),
-              alphaneg = list(lb = 0, ub = 1),
-              delta = list(lb=-Inf, ub = Inf),
-              tau = list(lb = 0, ub = Inf),
-              alpha = list(lb = 0, ub = Inf),
-              beta = list(lb = 0, ub = 1)
-            ),
-            resp_var = 'rt',
-            dec_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            fixed_vars = list(
-              rtbound = .1,
-              beta = .5
-              ),
-            func_name = 'qlddm_2a_qdiff_nu',
-            func_stanvar = qlddm_2a_qdiff_nu_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'alphapos', 'alphaneg', 'nu'),
-            func_data = c('choice', 'reward'),
-            func_params = c('alphapos', 'alphaneg', 'nu'),
-            func_par = 'delta',
-            family =  brms::wiener(link='identity', link_bs = 'log', link_ndt = 'identity', link_bias = 'identity'),
-            par_form = list(delta ~ 1, #nu ~ 1
-                            alphapos ~ 1, alphaneg ~ 1,
-                            brms::nlf(bias ~ beta), beta ~ 1,
-                            brms::nlf(bs ~ alpha), alpha ~ 1,
-                            brms::nlf(ndt ~ tau), tau ~ 1
-                            ),
-            par_transform =
-              list(alphapos + alphaneg ~ inv_logit(x), tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound) # bs transformed by link ...
-          ),
-        qlddm_a =
-          list(
-            class = 'qlddm_a',
-            description = 'Rescorla-Wagner delta learning model with learning rateeta mapped to drift rate of the wiener dsitribution',
-            parameters = list(
-              eta = list(lb = 0, ub = 1),
-              delta = list(lb=-Inf, ub = Inf),
-              tau = list(lb = 0, ub = Inf),
-              alpha = list(lb = 0, ub = Inf),
-              beta = list(lb = 0, ub = 1)
-            ),
-            resp_var = 'rt',
-            dec_var = 'choice',
-            pred_vars = c('reward'),
-            block_var = 'blockgrp',
-            fixed_vars = list(
-              rtbound = .1,
-              beta = .5
-            ),
-            func_name = 'qlddm_a_qdiff_nu',
-            func_stanvar = qlddm_a_qdiff_nu_model_func,
-            func_input = c('block_var', 'choice', 'reward', 'eta', 'nu'),
-            func_data = c('choice', 'reward'),
-            func_params = c('eta', 'nu'),
-            func_par = 'delta',
-            family =  brms::wiener(link='identity', link_bs = 'identity', link_ndt = 'identity', link_bias = 'identity'),
-            par_form = list(delta ~ 1, #nu ~ 1
-                            eta ~ 1,
-                            brms::nlf(bias ~ beta), beta ~ 1,
-                            brms::nlf(bs ~ alpha), alpha ~ 1,
-                            brms::nlf(ndt ~ tau), tau ~ 1
-            ),
-            par_transform =
-              list(eta ~ inv_logit(eta), alpha ~ exp(alpha), tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound) # bs transformed by link ...
-          )
-
-
-      )
-    return(model_specs)
+    if (is.null(ms_env$all_model_specs)) {
+      ms_env$all_model_specs <-
+        create_all_model_specs()
+    }
+    return(ms_env$all_model_specs)
   }
 
 #' Get model specification for a specific model class

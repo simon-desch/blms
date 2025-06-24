@@ -94,7 +94,7 @@ lhs_call_info <-
     # msg_var(pred_vars)
 
     group_terms <- find_bar_terms(form)
-    msg_var(group_terms)
+    # msg_var(group_terms)
     # message('bterm: ', toString(bterm),
     #         ', length: ', length(bterm),
     #         ', is.na:', is.na(bterm),
@@ -619,7 +619,7 @@ formula_replace_block_call <-
 block_fun_stanvar_for_fun_def <-
   function(fun_def) {
     fun_name <- fun_def$name
-    new_fun_name <- paste0(fun_name, '_group')
+    new_fun_name <- paste0(fun_name, '_block')
     new_fun_def <- fun_def
     new_fun_def$name = new_fun_name
     new_fun_def$args <-
@@ -667,7 +667,7 @@ parse_block_formula <-
       lapply(lapply(svars, '[[', 'scode'), parse_stan_functions)
     stan_fun_defs <-
       unlist(stan_fun_defs, recursive = F)
-    msg_var(form)
+    # msg_var(form)
 
     block_info <- NULL
     lhs_info <- lhs_call_info(form)
@@ -690,7 +690,7 @@ parse_block_formula <-
     has_block_call <- rhs_block_calls_n>0
     if (has_block_call)
       rhs_block_call <- rhs_block_calls[[1]]
-    msg_var(rhs_block_call)
+    # msg_var(rhs_block_call)
     if(has_block_call)
       block_info <- parse_block_call(deparse(rhs_block_call$expr))
     if(!any(has_block, has_block_call))
@@ -752,16 +752,15 @@ parse_block_formula <-
     funs_not_found <- Filter(\(x) length(x$stan_fun_def)==0, rhs_fun_info)
     for (fun in funs_not_found) {
       warning('Couldn\'t find valid definition for ', fun$fun_name,
-              '() in stanvars.')
-    }
+              '() in stanvars.')    }
     # remove functions without valid match definition in svars
     rhs_fun_info <- Filter(\(x) length(x$stan_fun_def)>0, rhs_fun_info)
 
     rhs_fun_calls_n <- length(rhs_info)
     new_form <- form
-    msg_var(new_form)
+    # msg_var(new_form)
     new_form <- formula_replace_block_call(new_form)
-    msg_var(new_form)
+    # msg_var(new_form)
     new_svars <- list()
     class(new_svars) <- 'stanvars'
     if (rhs_fun_calls_n>0) {
@@ -790,7 +789,8 @@ parse_block_formula <-
         }
       }
     }
-    attr(new_form, '.Environment') <- attr(form, '.Environment')
+    # attr(new_form, '.Environment') <- attr(form, '.Environment')
+    attributes(new_form) <- attributes(form)
     ret_val <-
       list(
         formula = new_form,
@@ -816,26 +816,34 @@ parse_blocked_formulas <-
     block_count <- 0
     new_svars <- svars
 
+    msg_var(form$formula)
+    print(str(form$formula))
     formula_block_info <-
       parse_block_formula(form$formula, svars, data, form, block_count)
     block_count <- formula_block_info$block_count
     if (length(formula_block_info$stanvars) > 0)
       new_svars <- new_svars + formula_block_info$stanvars
+    msg_var(formula_block_info$formula)
+    print(str(formula_block_info$formula))
     form$formula <- formula_block_info$formula
     form$formula_block_info <- formula_block_info
     pforms_block_infos <- list()
-    for (i in 1:length(form$pforms)) {
+    # for (i in 1:length(form$pforms)) {
+    for (par in names(form$pforms)) {
       pform_block_info <-
-        parse_block_formula(form$pform[[i]], svars, data, form, block_count)
+        parse_block_formula(form$pforms[[par]], svars, data, form, block_count)
       block_count <- pform_block_info$block_count
       if (length(pform_block_info$stanvars) > 0)
         new_svars <- new_svars + pform_block_info$stanvars
-      form$pform[[i]] <- pform_block_info$formula
-      pforms_block_infos[length(pforms_block_infos)+1] <-
+      form$pforms[[par]] <- pform_block_info$formula
+      # msg_var(pform_block_info)
+      # pforms_block_infos[[length(pforms_block_infos)+1]] <-
+      #   pform_block_info
+      pforms_block_infos[[par]] <-
         pform_block_info
     }
-    form$pforms_block_info <- formula_block_info
-
+    form$pforms_block_info <- pforms_block_infos
+    return(form)
   }
 parse_blm_formula <-
   function(form) {

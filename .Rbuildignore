@@ -4,3 +4,4 @@
 ^README\.Rmd$
 R/test.*
 R/.test.*
+^tools$

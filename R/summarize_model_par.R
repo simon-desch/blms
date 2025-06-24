@@ -672,12 +672,10 @@ get_nlpar_draws <- function(
   long_preds <-
     pred_fun(fit, newdata = new_data,
              re_formula = re_formula, nlpar = nlpar, value = nlpar)
+  # keep .draw to perform averaging within each draws
   long_preds <-
     long_preds[, !names(long_preds)%in%c('.chain', '.iteration', '.row')]
   # msg_var(long_preds)
-  # keep .draw to perform averaging within each draws
-  # long_preds <-
-  #   long_preds[, -grep('^\\.', names(long_preds))]
 
   average_factors <- NULL
   if(inherits(new_data, 'nlpar_pred_grid')) {
@@ -692,28 +690,6 @@ get_nlpar_draws <- function(
     long_preds <-
       average_over(long_preds, nlpar, average_factors)
   }
-  # msg_var(long_preds)
-  #  pred_fun <- if (method == "epred") brms::posterior_epred else
-  #   if (method == 'linpred') brms::posterior_linpred else
-  #     brms::posterior_predict
-  # preds <- pred_fun(fit, newdata = new_data, re_formula = re_formula, nlpar = nlpar)
-  #
-  #
-  # # --- Reshape: assign .id to columns to avoid parsing strings ---
-  # new_data$.id <- seq_len(nrow(new_data))  # unique ID per row
-  # pred_df <- as.data.frame(preds)
-  # colnames(pred_df) <- as.character(new_data$.id)
-  # pred_df$.draw <- seq_len(nrow(pred_df))
-  #
-  # # Pivot longer and join original predictor values
-  # library(tidyr)
-  # library(dplyr)
-  #
-  # long_preds <- pred_df %>%
-  #   pivot_longer(cols = -".draw", names_to = ".id", values_to = nlpar) %>%
-  #   mutate(.id = as.integer(.id)) %>%
-  #   left_join(new_data, by = ".id")
-
   return(long_preds)
   }
 

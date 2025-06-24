@@ -2,7 +2,7 @@
 % Please edit documentation in R/ql_2a_it.R
 \name{ql_2a_it}
 \alias{ql_2a_it}
-\title{Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and lapse parameter}
+\title{RL model with dual learning rate and inverse temperature}
 \usage{
 ql_2a_it(
   formula,
@@ -18,17 +18,7 @@ ql_2a_it(
 )
 }
 \arguments{
-\item{formula}{response formula specifying the response and its prediction.
-For models of class \code{'ql_2a_it'} this formula needs to define the
-response on the left-hand side, a variable coded as 1 or 2, and the
-feedback (aka outcome) on the right-hand side, coded as 1 or -1. In
-addition, you can define the block structure on the left-hand side
-of the formula. That is, a formula like
-\code{choice|block(id) ~ reward} would update (expected) values
-based on each trials choice and reward starting from the first row
-in \code{data} until \code{id[n] != id[n-1]}.
-In that case, updating of Q values starts again from starting values
-\code{c(0.0, 0.0)}.}
+\item{formula}{Response formula specifying the response and its prediction. Usually this formula needs to define the response on the left-hand side, a variable coded as \code{1} or \code{2}, and the feedback (aka outcome) on the right-hand side, coded as \code{1} or \code{-1}. If \code{model_spec$func_par} is not \code{mu} then the prediction variables should be defined on the formula for \code{model_spec$func_par} instead.In addition, you can define the block structure on the left-hand side of the formula. That is, a formula like \code{choice|block(id) ~ reward} would update the (expected) values based on each trial's choice and reward starting from the first row in data until \code{id[n] != id[n-1]}. In that case, updating of Q values starts again from starting values \code{c(0.0, 0.0)}.}
 
 \item{...}{You can pass further formulas to define predictions of parameters
 used in the response formula. Any non-formula objects passed via
@@ -90,10 +80,31 @@ many transformation formulas as there are variables on the left-hand
 side and replace 'x' on the right-hand side.}
 }
 \value{
-If \code{formula_only} is \code{TRUE} then the return value is an object of
-class \code{blmsformula} (inheriting from class \code{brmsformula}), else the
-return value is of class \code{blmsfit} (inheriting from class \code{brmsfit})
+If \code{formula_only} is \code{TRUE} then the return value is an
+object of class \code{blmsformula} (inheriting from class
+\code{brms::brmsformula}), else the return value is of class
+\code{blmsfit} (inheriting from class \code{brms::brmsfit})
 }
 \description{
-Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and lapse parameter
+Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors and inverse temperature
 }
+\details{
+\subsection{Parameters:\cr}{
+
+\itemize{\cr\item \strong{\eqn{\alpha_{pos}}} [0.0, 1.0]: Learning rate after receiving a positive outcome\cr\item \strong{\eqn{\alpha_{neg}}} [0.0, 1.0]: Learning rate after receiving a negative outcome\cr\item \strong{\eqn{\tau}} [0.0, Inf]: Inverse temperature\cr}\cr
+}
+
+\subsection{Update formula:\cr}{
+
+\deqn{Q_{a,t+1} = Q_{a,t} + \alpha \times (R_{t} - Q_{a,t}),\quad \text{where } \alpha = \begin{cases} \alpha_{pos} & \text{if } R_{t} \geq 0 \\ \alpha_{neg} & \text{if } R_{t} \lt 0\end{cases}}\cr
+}
+
+\subsection{Link formula:\cr}{
+
+\deqn{p(a_{i}) = \frac{e^{\tau Q_{a_{i}}}}{\sum_{j=1}^{K} e^{\tau Q_{a_{j}}}},  }\cr
+}
+}
+\section{References\cr}{
+Watkins, C. J. C. H., & Dayan, P. (1992). Q-learning. \emph{Machine Learning}, 8(3), 279–292. \url{https://doi.org/10.1007/BF00992698}
+}
+
