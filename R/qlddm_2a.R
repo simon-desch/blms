@@ -35,10 +35,10 @@ qlddm_2a <-
                  formula_only = formula_only,
                  compile = compile,
                  run = run,
-                 model_class = 'qlddm_2a',
-                 model_spec = get_model_spec(model_class),
-                 par_form = model_spec[['par_form']],
-                 par_transform = model_spec[['par_transform']]
+                 model_class = model_class,
+                 model_spec = model_spec,
+                 par_form = par_form,
+                 par_transform = par_transform
       )
     )
   }

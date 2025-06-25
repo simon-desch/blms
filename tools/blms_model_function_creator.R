@@ -18,7 +18,7 @@ add_model_function_for_class <-
 # create files ------------------------------------------------------------
 
 
-add_model_function_for_class('ql_a_2it')
+# add_model_function_for_class('ql_a_2it')
 
 for (class in names(get_all_model_specs())) {
   add_model_function_for_class(class)

@@ -162,6 +162,7 @@ blms_model <-
     # str(model_form$brmsformula)
 
 
+    # msg_var(dots)
     brmsformula <- model_form$brmsformula
     brmsformula$formula <- formula_replace_block_call(brmsformula$formula)
     # msg_var(brmsformula)

@@ -1013,6 +1013,7 @@ parse_brms_blms <-
         stop('Parameter formula for parameter \'', model_spec$func_par, '\', ',
              'supposed to contain the model function, not found.')
       }
+        # msg_var(fform)
       in_form <- fform
       form_info <-
         substitute_model_func(in_form, model_spec, resp_var, dec_var)

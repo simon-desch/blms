@@ -93,6 +93,11 @@ parse_blms_model_inputs <-
     model_pars <- get_parameter_names(model_spec)
     # cat_var(model_pars)
 
+    # resolve ambiguity
+    if (model_spec$class != model_class) {
+      model_class <- model_spec$class
+    }
+
     m <- model_spec
     # ToDo: implement validation of model_spec
     if(missing(par_form)) par_form <- m$par_form
@@ -574,6 +579,7 @@ default_prior.blmsformula <-
     data[[object$model_spec$block_var]] <-
       as.numeric(interaction(data[, block_vars]))
   }
+  # str(object$pforms)
   brms:::default_prior.default(
     object, data, family = gaussian(), autocor = NULL,
     data2 = NULL, knots = NULL, drop_unused_levels = TRUE, sparse = NULL,

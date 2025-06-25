@@ -2,7 +2,7 @@
 % Please edit documentation in R/qlddm_2a.R
 \name{qlddm_2a}
 \alias{qlddm_2a}
-\title{RLDDM model with parameters \eqn{ \alpha_{pos} }, \eqn{ \alpha_{neg} }, \eqn{ \tau }}
+\title{RLDDM model with learning rate and inverse temperature}
 \usage{
 qlddm_2a(
   formula,
@@ -91,6 +91,20 @@ Rescorla-Wagner delta learning model with separate learning rates for positive a
 \details{
 \subsection{Parameters:\cr}{
 
-\itemize{\cr\item \strong{\eqn{\alpha_{pos}}} [0.0, 1.0]: Learning rate after receiving a positive outcome\cr\item \strong{\eqn{\alpha_{neg}}} [0.0, 1.0]: Learning rate after receiving a negative outcome\cr\item \strong{\eqn{\delta}} [-Inf, Inf]: Slope of the random walk\cr\item \strong{\eqn{\nu}} [-Inf, Inf]: Slope of the random walk\cr\item \strong{\eqn{\tau}} [0.0, Inf]: Non-descision time\cr\item \strong{\eqn{\alpha}} [0.0, Inf]: Boundary separation\cr\item \strong{\eqn{\beta}} [0.0, 1.0]: Bias\cr}
+\itemize{\cr\item \strong{\eqn{\delta}} [-Inf, Inf]: Slope of the random walk (RL model parameter)\cr\item \strong{\eqn{\eta_{pos}}} [0.0, 1.0]: Learning rate after receiving a positive outcome\cr\item \strong{\eqn{\eta_{neg}}} [0.0, 1.0]: Learning rate after receiving a negative outcome\cr\item \strong{\eqn{\nu}} [-Inf, Inf]: Scale factor for mapping the difference of Q-values (\eqn{Q_{ub} - Q_{lb}}) to the drift rate \eqn{\delta}\cr\item \strong{\eqn{\tau}} [0.0, Inf]: Non-descision time\cr\item \strong{\eqn{\alpha}} [0.0, Inf]: Boundary separation\cr\item \strong{\eqn{\beta}} [0.0, 1.0]: Bias\cr}\cr
+}
+
+\subsection{Update formula:\cr}{
+
+\deqn{Q_{a,t+1} = Q_{a,t} + \eta \times (R_{t} - Q_{a,t}),\quad \text{where } \eta = \begin{cases} \eta_{pos} & \text{if } R_{t} \geq 0 \\ \eta_{neg} & \text{if } R_{t} \lt 0\end{cases}}\cr
+}
+
+\subsection{Link formula:\cr}{
+
+\deqn{\mathrm{RT}_{a_{i}} \sim \begin{cases} \mathrm{Wiener}(\alpha, \tau, \beta, \delta) & \text{if choice } c_{i} = 1 \text{ (upper bound)} \\ \mathrm{Wiener}(\alpha, \tau, 1-\beta, -\delta) & \text{if choice } c_{i} = 0 \text{ (lower bound)}\end{cases}}\cr
 }
 }
+\section{References\cr}{
+Pedersen ML, Frank MJ, Biele G. 2017. The drift diffusion model as the choice rule in reinforcement learning. Psychonomic Bulletin & Review 24:1234–1251. \url{https://doi.org/10.3758/s13423-016-1199-y}
+}
+
