@@ -2,7 +2,7 @@
 % Please edit documentation in R/qlddm_2a.R
 \name{qlddm_2a}
 \alias{qlddm_2a}
-\title{RLDDM model with learning rate and inverse temperature}
+\title{RLDDM model with dual learning rate}
 \usage{
 qlddm_2a(
   formula,
@@ -86,12 +86,12 @@ object of class \code{blmsformula} (inheriting from class
 \code{blmsfit} (inheriting from class \code{brms::brmsfit})
 }
 \description{
-Rescorla-Wagner delta learning model with separate learning rates for positive and negative prediction errors mapped to drift rate of the wiener distribution
+Reinforcement leanrining drift diffusion model with separate learning rates \eqn{\eta_{pos}}for positive and \eqn{eta_{neg}} fornegative prediction errors.The scaled difference of Q-values is mapped to the drift rate of the Wiener distribution.
 }
 \details{
 \subsection{Parameters:\cr}{
 
-\itemize{\cr\item \strong{\eqn{\delta}} [-Inf, Inf]: Slope of the random walk (RL model parameter)\cr\item \strong{\eqn{\eta_{pos}}} [0.0, 1.0]: Learning rate after receiving a positive outcome\cr\item \strong{\eqn{\eta_{neg}}} [0.0, 1.0]: Learning rate after receiving a negative outcome\cr\item \strong{\eqn{\nu}} [-Inf, Inf]: Scale factor for mapping the difference of Q-values (\eqn{Q_{ub} - Q_{lb}}) to the drift rate \eqn{\delta}\cr\item \strong{\eqn{\tau}} [0.0, Inf]: Non-descision time\cr\item \strong{\eqn{\alpha}} [0.0, Inf]: Boundary separation\cr\item \strong{\eqn{\beta}} [0.0, 1.0]: Bias\cr}\cr
+\itemize{\cr\item \strong{\eqn{\delta}} [-Inf, Inf]: Slope of the random walk (RL model parameter)\cr\item \strong{\eqn{\eta_{pos}}} [0.0, 1.0]: Learning rate after receiving a positive outcome\cr\item \strong{\eqn{\eta_{neg}}} [0.0, 1.0]: Learning rate after receiving a negative outcome\cr\item \strong{\eqn{\nu}} [-Inf, Inf]: Scale factor for mapping the difference of Q-values (\eqn{Q_{upper} - Q_{lower}}) to the drift rate \eqn{\delta}\cr\item \strong{\eqn{\tau}} [0.0, Inf]: Non-descision time\cr\item \strong{\eqn{\alpha}} [0.0, Inf]: Boundary separation\cr\item \strong{\eqn{\beta}} [0.0, 1.0]: Bias\cr}\cr
 }
 
 \subsection{Update formula:\cr}{

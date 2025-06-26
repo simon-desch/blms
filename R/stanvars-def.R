@@ -1447,7 +1447,7 @@ ql_a_2rho_fu_probs_func <-
 ql_2a_rho_fu_probs_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_rho_fu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector aplhaneg, vector rho) {
+  vector ql_a_rho_fu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rho) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -1499,7 +1499,7 @@ ql_2a_rho_fu_probs_func <-
 ql_2a_2rho_fu_probs_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_rho_fu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector aplhaneg, vector rhopoe, vector rhoneg) {
+  vector ql_a_rho_fu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rhopoe, vector rhoneg) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -2105,7 +2105,7 @@ ql_a_2rho_kfu_probs_func <-
 ql_2a_rho_kfu_probs_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_rho_kfu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector aplhaneg, vector rho, vetor kappa) {
+  vector ql_a_rho_kfu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rho, vetor kappa) {
     int nT = size(choice);
     vector[nT] Ps_out;
 
@@ -2157,7 +2157,7 @@ ql_2a_rho_kfu_probs_func <-
 ql_2a_2rho_kfu_probs_func <-
   brms::stanvar(
     scode = '
-  vector ql_a_rho_kfu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector aplhaneg, vector rhopoe, vector rhoneg) {
+  vector ql_a_rho_kfu_probs(vector block_grp, vector choice, vector reward, vector alphapos, vector alphaneg, vector rhopoe, vector rhoneg) {
     int nT = size(choice);
     vector[nT] Ps_out;
 

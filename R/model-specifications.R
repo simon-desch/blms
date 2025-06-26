@@ -2564,103 +2564,14 @@ create_all_model_specs <-
               list(gamma ~ inv_logit(gamma),
                    c + d ~ inv_logit(x) * 0.5 + 0.5)
           ) ,
-        qlddm_2a =
-          new_model_spec(
-            class = 'qlddm_2a',
-            description = paste0('Rescorla-Wagner delta learning model with ',
-                                 'separate learning rates for positive and ',
-                                 'negative prediction errors mapped to drift ',
-                                 'rate of the wiener distribution'),
-            parameters = list(
-              delta = list(lb=-Inf, ub = Inf,
-                           desc = paste0('Slope of the random walk ',
-                                         '(RL model parameter)')),
-              etapos = list(lb = 0, ub = 1,
-                            desc = paste0('Learning rate after receiving ',
-                                          'a positive outcome')),
-              etaneg = list(lb = 0, ub = 1,
-                            desc = paste0('Learning rate after receiving ',
-                                          'a negative outcome')),
-              nu = list(lb=-Inf, ub = Inf,
-                        desc = paste0('Scale factor for mapping the ',
-                                      'difference of Q-values ',
-                                      '(\\eqn{Q_{ub} - Q_{lb}}) ',
-                                      'to the drift rate \\eqn{\\delta}')),
-              tau = list(lb = 0, ub = Inf,
-                         desc = paste0('Non-descision time')),
-              alpha = list(lb = 0, ub = Inf,
-                           desc = paste0('Boundary separation')),
-              beta = list(lb = 0, ub = 1,
-                          desc = paste0('Bias'))
-            ),
-            resp_var = 'rt',
-            dec_var = 'choice',
-            pred_vars = c('reward'),
-            fixed_vars = list(
-              rtbound = .1,
-              beta = .5
-            ),
-            func_name = 'qlddm_2a_qdiff_nu',
-            func_stanvar = qlddm_2a_qdiff_nu_func,
-            func_input = c('blockgrp', 'choice', 'reward',
-                           'etapos', 'etaneg', 'nu'),
-            func_params = c('etapos', 'etaneg', 'nu'),
-            func_par = 'delta',
-            family =  brms::wiener(link = 'identity',
-                                   link_bs = 'identity',
-                                   link_ndt = 'identity',
-                                   link_bias = 'identity'),
-            par_form = list(delta ~ 1, nu ~ 1,
-                            etapos ~ 1, etaneg ~ 1,
-                            brms::nlf(bias ~ beta), beta ~ 1,
-                            brms::nlf(bs ~ alpha), alpha ~ 1,
-                            brms::nlf(ndt ~ tau), tau ~ 1
-            ),
-            par_transform =
-              list(etapos + etaneg ~ inv_logit(x), alpha ~ exp(alpha),
-                   tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound),
-            doc_helper = list(
-              title = paste0('RLDDM model with learning rate and ',
-                             'inverse temperature'),
-              formula_arg = '',
-              references = c(
-                paste0('Pedersen ML, Frank MJ, Biele G. 2017. ',
-                       'The drift diffusion model as the choice rule ',
-                       'in reinforcement learning. ',
-                       'Psychonomic Bulletin & Review 24:1234–1251. ',
-                       '\\url{https://doi.org/10.3758/s13423-016-1199-y}')
-              ),
-              update_formulas = c(
-                paste0('\\deqn{Q_{a,t+1} = Q_{a,t} + ',
-                       '\\eta \\times (R_{t} - Q_{a,t})',
-                       ',\\quad \\text{where } \\eta = \\begin{cases} ',
-                       '\\eta_{pos} & \\text{if } R_{t} \\geq 0',
-                       ' \\\\ ',
-                       '\\eta_{neg} & \\text{if } R_{t} \\lt 0',
-                       '\\end{cases}',
-                       '}')
-              )
-              ,
-              link_formula = c(
-                paste0('\\deqn{',
-                       '\\mathrm{RT}_{a_{i}} \\sim ',
-                       '\\begin{cases} ',
-                       '\\mathrm{Wiener}(\\alpha, \\tau, \\beta, \\delta) & ',
-                       '\\text{if choice } c_{i} = 1 \\text{ (upper bound)}',
-                       ' \\\\ ',
-                       '\\mathrm{Wiener}(\\alpha, \\tau, 1-\\beta, -\\delta) & ',
-                       '\\text{if choice } c_{i} = 0 \\text{ (lower bound)}',
-                       '\\end{cases}',
-                       '}')
-              )
-            )
-          ),
         qlddm_a =
           new_model_spec(
             class = 'qlddm_a',
-            description = paste0('Rescorla-Wagner delta learning model with ',
-                                 'learning rate eta mapped to drift rate of ',
-                                 'the wiener distribution'),
+            description = paste0('Reinforcement leanrining drift diffusion ',
+                                 'model with learning rate \\eqn{\\eta}. ',
+                                 'The scaled difference of Q-values is ',
+                                 'mapped to the drift rate of ',
+                                 'the Wiener distribution.'),
             parameters = list(
               delta = list(lb=-Inf, ub = Inf,
                            desc = paste0('Slope of the random walk ',
@@ -2670,7 +2581,7 @@ create_all_model_specs <-
               nu = list(lb=-Inf, ub = Inf,
                         desc = paste0('Scale factor for mapping the ',
                                       'difference of Q-values ',
-                                      '(\\eqn{Q_{ub} - Q_{lb}}) ',
+                                      '(\\eqn{Q_{upper} - Q_{lower}}) ',
                                       'to the drift rate \\eqn{\\delta}')),
               tau = list(lb = 0, ub = Inf,
                          desc = paste0('Non-descision time')),
@@ -2706,8 +2617,7 @@ create_all_model_specs <-
               list(eta ~ inv_logit(eta), alpha ~ exp(alpha),
                    tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound),
             doc_helper = list(
-              title = paste0('RLDDM model with learning rate and ',
-                             'inverse temperature'),
+              title = paste0('RLDDM model with single learning rate'),
               formula_arg = '',
               references = c(
                 paste0('Pedersen ML, Frank MJ, Biele G. 2017. ',
@@ -2719,6 +2629,186 @@ create_all_model_specs <-
               update_formulas = c(
                 paste0('\\deqn{Q_{a,t+1} = Q_{a,t} + ',
                        '\\alpha \\times (R_{t} - Q_{a,t})}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       '\\mathrm{RT}_{a_{i}} \\sim ',
+                       '\\begin{cases} ',
+                       '\\mathrm{Wiener}(\\alpha, \\tau, \\beta, \\delta) & ',
+                       '\\text{if choice } c_{i} = 1 \\text{ (upper bound)}',
+                       ' \\\\ ',
+                       '\\mathrm{Wiener}(\\alpha, \\tau, 1-\\beta, -\\delta) & ',
+                       '\\text{if choice } c_{i} = 0 \\text{ (lower bound)}',
+                       '\\end{cases}',
+                       '}')
+              )
+            )
+          ),
+        qlddm_2a =
+          new_model_spec(
+            class = 'qlddm_2a',
+            description = paste0('Reinforcement leanrining drift diffusion ',
+                                 'model with ',
+                                 'separate learning rates \\eqn{\\eta_{pos}}',
+                                 'for positive and \\eqn{eta_{neg}} for',
+                                 'negative prediction errors.',
+                                 'The scaled difference of Q-values is ',
+                                 'mapped to the drift rate of ',
+                                 'the Wiener distribution.'),
+            parameters = list(
+              delta = list(lb=-Inf, ub = Inf,
+                           desc = paste0('Slope of the random walk ',
+                                         '(RL model parameter)')),
+              etapos = list(lb = 0, ub = 1,
+                            desc = paste0('Learning rate after receiving ',
+                                          'a positive outcome')),
+              etaneg = list(lb = 0, ub = 1,
+                            desc = paste0('Learning rate after receiving ',
+                                          'a negative outcome')),
+              nu = list(lb=-Inf, ub = Inf,
+                        desc = paste0('Scale factor for mapping the ',
+                                      'difference of Q-values ',
+                                      '(\\eqn{Q_{upper} - Q_{lower}}) ',
+                                      'to the drift rate \\eqn{\\delta}')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Non-descision time')),
+              alpha = list(lb = 0, ub = Inf,
+                           desc = paste0('Boundary separation')),
+              beta = list(lb = 0, ub = 1,
+                          desc = paste0('Bias'))
+            ),
+            resp_var = 'rt',
+            dec_var = 'choice',
+            pred_vars = c('reward'),
+            fixed_vars = list(
+              rtbound = .1,
+              beta = .5
+            ),
+            func_name = 'qlddm_2a_qdiff_nu',
+            func_stanvar = qlddm_2a_qdiff_nu_func,
+            func_input = c('blockgrp', 'choice', 'reward',
+                           'etapos', 'etaneg', 'nu'),
+            func_params = c('etapos', 'etaneg', 'nu'),
+            func_par = 'delta',
+            family =  brms::wiener(link = 'identity',
+                                   link_bs = 'identity',
+                                   link_ndt = 'identity',
+                                   link_bias = 'identity'),
+            par_form = list(delta ~ 1, nu ~ 1,
+                            etapos ~ 1, etaneg ~ 1,
+                            brms::nlf(bias ~ beta), beta ~ 1,
+                            brms::nlf(bs ~ alpha), alpha ~ 1,
+                            brms::nlf(ndt ~ tau), tau ~ 1
+            ),
+            par_transform =
+              list(etapos + etaneg ~ inv_logit(x), alpha ~ exp(alpha),
+                   tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound),
+            doc_helper = list(
+              title = paste0('RLDDM model with dual learning rate'),
+              formula_arg = '',
+              references = c(
+                paste0('Pedersen ML, Frank MJ, Biele G. 2017. ',
+                       'The drift diffusion model as the choice rule ',
+                       'in reinforcement learning. ',
+                       'Psychonomic Bulletin & Review 24:1234–1251. ',
+                       '\\url{https://doi.org/10.3758/s13423-016-1199-y}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{Q_{a,t+1} = Q_{a,t} + ',
+                       '\\eta \\times (R_{t} - Q_{a,t})',
+                       ',\\quad \\text{where } \\eta = \\begin{cases} ',
+                       '\\eta_{pos} & \\text{if } R_{t} \\geq 0',
+                       ' \\\\ ',
+                       '\\eta_{neg} & \\text{if } R_{t} \\lt 0',
+                       '\\end{cases}',
+                       '}')
+              )
+              ,
+              link_formula = c(
+                paste0('\\deqn{',
+                       '\\mathrm{RT}_{a_{i}} \\sim ',
+                       '\\begin{cases} ',
+                       '\\mathrm{Wiener}(\\alpha, \\tau, \\beta, \\delta) & ',
+                       '\\text{if choice } c_{i} = 1 \\text{ (upper bound)}',
+                       ' \\\\ ',
+                       '\\mathrm{Wiener}(\\alpha, \\tau, 1-\\beta, -\\delta) & ',
+                       '\\text{if choice } c_{i} = 0 \\text{ (lower bound)}',
+                       '\\end{cases}',
+                       '}')
+              )
+            )
+          ),
+        qlddm_a_rho =
+          new_model_spec(
+            class = 'qlddm_a_rho',
+            description = paste0('Rescorla-Wagner delta learning model with ',
+                                 'learning rate \\eqn{\\eta} and reward ',
+                                 'reward sensitivity \\eqn{\\rho}.',
+                                 'The scaled difference of Q-values is ',
+                                 'mapped to the drift rate of ',
+                                 'the Wiener distribution.'),
+            parameters = list(
+              delta = list(lb=-Inf, ub = Inf,
+                           desc = paste0('Slope of the random walk ',
+                                         '(RL model parameter)')),
+              eta = list(lb = 0, ub = 1,
+                         desc = paste0('Learning rate')),
+              rho = list(lb = -Inf, ub = Inf,
+                         desc = paste0('Reward sensitivity')),
+              nu = list(lb=-Inf, ub = Inf,
+                        desc = paste0('Scale factor for mapping the ',
+                                      'difference of Q-values ',
+                                      '(\\eqn{Q_{ub} - Q_{lb}}) ',
+                                      'to the drift rate \\eqn{\\delta}')),
+              tau = list(lb = 0, ub = Inf,
+                         desc = paste0('Non-descision time')),
+              alpha = list(lb = 0, ub = Inf,
+                           desc = paste0('Boundary separation')),
+              beta = list(lb = 0, ub = 1,
+                          desc = paste0('Bias'))
+            ),
+            resp_var = 'rt',
+            dec_var = 'choice',
+            pred_vars = c('reward'),
+            fixed_vars = list(
+              rtbound = .1,
+              beta = .5
+            ),
+            func_name = 'qlddm_a_rho_qdiff_nu',
+            func_stanvar = qlddm_a_rho_qdiff_nu_func,
+            func_input = c('blockgrp', 'choice', 'reward', 'eta', 'rho', 'nu'),
+            func_data = c('choice', 'reward'),
+            func_params = c('eta', 'rho', 'nu'),
+            func_par = 'delta',
+            family =  brms::wiener(link = 'identity',
+                                   link_bs = 'identity',
+                                   link_ndt = 'identity',
+                                   link_bias = 'identity'),
+            par_form = list(delta ~ 1, nu ~ 1,
+                            eta ~ 1, rho ~ 1,
+                            brms::nlf(bias ~ beta), beta ~ 1,
+                            brms::nlf(bs ~ alpha), alpha ~ 1,
+                            brms::nlf(ndt ~ tau), tau ~ 1
+            ),
+            par_transform =
+              list(eta ~ inv_logit(eta), rho ~ inv_logit(rho) * 20,
+                   alpha ~ exp(alpha),
+                   tau ~ vec_prod(inv_logit(tau), (min_rt - rtbound)) + rtbound),
+            doc_helper = list(
+              title = paste0('RLDDM model with single learning rate and ',
+                             'reward sensitivity'),
+              formula_arg = '',
+              references = c(
+                paste0('Pedersen ML, Frank MJ, Biele G. 2017. ',
+                       'The drift diffusion model as the choice rule ',
+                       'in reinforcement learning. ',
+                       'Psychonomic Bulletin & Review 24:1234–1251. ',
+                       '\\url{https://doi.org/10.3758/s13423-016-1199-y}')
+              ),
+              update_formulas = c(
+                paste0('\\deqn{Q_{a,t+1} = Q_{a,t} + ',
+                       '\\alpha \\times (\\rho R_{t} - Q_{a,t})}')
               )
               ,
               link_formula = c(
